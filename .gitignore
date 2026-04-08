@@ -1,0 +1,24 @@
+## Build output
+bin/
+obj/
+publish/
+
+## User-specific
+*.user
+*.suo
+*.userprefs
+
+## IDE
+.vs/
+.idea/
+*.swp
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Debug logs
+punchthrough_debug.log
+
+## Claude
+CLAUDE.md
