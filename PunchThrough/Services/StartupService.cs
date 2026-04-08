@@ -37,9 +37,26 @@ public static class StartupService
                 key.DeleteValue(AppName, throwOnMissingValue: false);
             }
         }
-        catch
+        catch { }
+
+        // Clean up any leftover scheduled task from previous versions
+        CleanupScheduledTask();
+    }
+
+    private static void CleanupScheduledTask()
+    {
+        try
         {
-            // Registry access may fail
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "schtasks",
+                Arguments = $"/Delete /TN \"{AppName}\" /F",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var proc = System.Diagnostics.Process.Start(psi);
+            proc?.WaitForExit(2000);
         }
+        catch { }
     }
 }
