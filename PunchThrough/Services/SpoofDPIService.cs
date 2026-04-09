@@ -10,9 +10,14 @@ public class SpoofDPIService
 {
     private Process? _currentProcess;
 
+    private static readonly string LogFile = System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "pt_debug.log");
+
     private static void Log(string message)
     {
-        Debug.WriteLine($"[{DateTime.Now:o}] {message}");
+        var line = $"[{DateTime.Now:o}] {message}\n";
+        try { System.IO.File.AppendAllText(LogFile, line); } catch { }
+        Debug.WriteLine(line);
     }
 
     public async Task StartAsync(int port, string dnsAddress, bool enableDoH, bool enableSystemProxy, AppState appState)
@@ -103,19 +108,18 @@ public class SpoofDPIService
     {
         var args = new List<string>
         {
-            "-listen-addr", "127.0.0.1",
-            "-listen-port", port.ToString(),
-            "-dns-addr", dnsAddress,
-            "-system-proxy=false",
-            "-silent"
+            "--listen-addr", $"127.0.0.1:{port}",
+            "--dns-addr", $"{dnsAddress}:53",
+            "--https-split-mode", "chunk",
+            "--https-chunk-size", "5",
+            "--silent"
         };
 
         if (enableDoH)
-            args.Add("-enable-doh");
+            args.AddRange(new[] { "--dns-mode", "https" });
 
-        // includePolicy: try with window-size fragmentation first, fall back to defaults
         if (includePolicy)
-            args.AddRange(new[] { "-window-size", "1" });
+            args.Add("--dns-cache");
 
         return args.ToArray();
     }
@@ -148,6 +152,7 @@ public class SpoofDPIService
         {
             Log("Starting process...");
             process.Start();
+            process.BeginOutputReadLine();
             process.BeginErrorReadLine();
             _currentProcess = process;
             Log($"Process started! PID: {process.Id}");

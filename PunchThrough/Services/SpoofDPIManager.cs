@@ -11,11 +11,11 @@ public static class SpoofDPIManager
 {
     private static readonly HttpClient Http = new();
 
-    // Pinned to latest version that ships a Windows binary
-    private const string PinnedVersion = "0.12.2";
-    private const string PinnedTag = "v0.12.2";
+    // v1.3.0 built from source for Windows (official repo doesn't ship Windows binaries for v1.x)
+    private const string PinnedVersion = "1.3.0";
+    private const string PinnedTag = "v1.3.0";
     private const string DownloadUrl =
-        $"https://github.com/xvzc/SpoofDPI/releases/download/{PinnedTag}/spoofdpi-windows-amd64.exe";
+        $"https://github.com/quardianwolf/SpoofDPI-Windows/releases/download/{PinnedTag}/spoofdpi-windows-amd64.exe";
 
     private const string BinaryName = "spoofdpi.exe";
 

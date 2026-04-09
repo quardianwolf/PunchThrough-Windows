@@ -21,11 +21,13 @@ public static class ProxyService
             using var key = Registry.CurrentUser.OpenSubKey(RegistryPath, writable: true);
             if (key == null) return;
 
+            // Clean up PAC from previous versions
+            key.DeleteValue("AutoConfigURL", throwOnMissingValue: false);
+
             if (enable)
             {
                 key.SetValue("ProxyEnable", 1, RegistryValueKind.DWord);
                 key.SetValue("ProxyServer", $"127.0.0.1:{port}");
-                // Bypass proxy for local addresses
                 key.SetValue("ProxyOverride", "<local>;localhost;127.0.0.1");
             }
             else
@@ -35,7 +37,6 @@ public static class ProxyService
                 key.DeleteValue("ProxyOverride", throwOnMissingValue: false);
             }
 
-            // Notify the system that proxy settings have changed
             InternetSetOption(IntPtr.Zero, INTERNET_OPTION_SETTINGS_CHANGED, IntPtr.Zero, 0);
             InternetSetOption(IntPtr.Zero, INTERNET_OPTION_REFRESH, IntPtr.Zero, 0);
         }

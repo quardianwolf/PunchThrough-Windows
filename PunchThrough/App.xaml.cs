@@ -12,15 +12,18 @@ public partial class App : Application
     private TrayIcon? _trayIcon;
     private AppState? _appState;
     private Mutex? _mutex;
+    private bool _ownsMutex;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
         // Single instance check — if another instance is running, quit silently
-        _mutex = new Mutex(true, "PunchThrough_SingleInstance_B7E8C3A1", out var isNew);
-        if (!isNew)
+        _mutex = new Mutex(true, "PunchThrough_SingleInstance_B7E8C3A1", out _ownsMutex);
+        if (!_ownsMutex)
         {
+            _mutex.Dispose();
+            _mutex = null;
             Shutdown();
             return;
         }
@@ -70,7 +73,10 @@ public partial class App : Application
         }
 
         _trayIcon?.Dispose();
-        _mutex?.ReleaseMutex();
+        if (_ownsMutex)
+        {
+            try { _mutex?.ReleaseMutex(); } catch { }
+        }
         _mutex?.Dispose();
         base.OnExit(e);
     }
