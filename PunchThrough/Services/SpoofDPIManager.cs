@@ -1,27 +1,17 @@
 using System.IO;
-using System.IO.Compression;
-using System.Net.Http;
+using System.Reflection;
 
 namespace PunchThrough.Services;
 
 /// <summary>
-/// Manages SpoofDPI binary download. Uses a pinned stable version — no auto-update.
+/// Manages SpoofDPI binary. Extracts from embedded resource — no download needed.
 /// </summary>
 public static class SpoofDPIManager
 {
-    private static readonly HttpClient Http = new();
-
-    // v1.3.0 built from source for Windows (official repo doesn't ship Windows binaries for v1.x)
     private const string PinnedVersion = "1.3.0";
-    private const string PinnedTag = "v1.3.0";
-    private const string DownloadUrl =
-        $"https://github.com/quardianwolf/SpoofDPI-Windows/releases/download/{PinnedTag}/spoofdpi-windows-amd64.exe";
-
     private const string BinaryName = "spoofdpi.exe";
+    private const string EmbeddedResourceName = "PunchThrough.Assets.spoofdpi.exe";
 
-    /// <summary>
-    /// %LocalAppData%/PunchThrough/bin/
-    /// </summary>
     public static string BinDirectory
     {
         get
@@ -35,66 +25,64 @@ public static class SpoofDPIManager
     }
 
     public static string BinaryPath => Path.Combine(BinDirectory, BinaryName);
+    private static string VersionFilePath => Path.Combine(BinDirectory, "spoofdpi.version");
 
-    public static bool IsInstalled() => File.Exists(BinaryPath);
+    public static bool IsInstalled()
+    {
+        if (!File.Exists(BinaryPath)) return false;
+
+        try
+        {
+            if (File.Exists(VersionFilePath))
+            {
+                var installed = File.ReadAllText(VersionFilePath).Trim();
+                if (installed != PinnedVersion) return false;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        catch { }
+
+        return true;
+    }
 
     public static string GetPinnedVersion() => PinnedVersion;
 
     /// <summary>
-    /// Download pinned SpoofDPI version from GitHub.
+    /// Extract SpoofDPI from embedded resource. No internet needed.
     /// </summary>
     public static async Task<(bool success, string message)> DownloadAsync(IProgress<int>? progress = null)
     {
         try
         {
-            Http.DefaultRequestHeaders.UserAgent.Clear();
-            Http.DefaultRequestHeaders.UserAgent.ParseAdd("PunchThrough/1.0");
+            progress?.Report(10);
 
-            progress?.Report(5);
+            var assembly = Assembly.GetExecutingAssembly();
+            using var stream = assembly.GetManifestResourceStream(EmbeddedResourceName);
 
-            // Download exe directly (v0.12.2 ships a standalone .exe, not a zip)
-            try
-            {
-                using var response = await Http.GetAsync(DownloadUrl, HttpCompletionOption.ResponseHeadersRead);
+            if (stream == null)
+                return (false, "SpoofDPI binary not found in application resources.");
 
-                if (!response.IsSuccessStatusCode)
-                    return (false, $"Download failed: HTTP {(int)response.StatusCode}");
+            progress?.Report(30);
 
-                var totalBytes = response.Content.Headers.ContentLength ?? -1;
-                await using var stream = await response.Content.ReadAsStreamAsync();
+            if (File.Exists(BinaryPath))
+                File.Delete(BinaryPath);
 
-                if (File.Exists(BinaryPath))
-                    File.Delete(BinaryPath);
+            await using var fileStream = File.Create(BinaryPath);
+            await stream.CopyToAsync(fileStream);
 
-                await using var fileStream = File.Create(BinaryPath);
+            progress?.Report(80);
 
-                var buffer = new byte[81920];
-                long downloaded = 0;
-                int bytesRead;
-
-                while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
-                {
-                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                    downloaded += bytesRead;
-
-                    if (totalBytes > 0)
-                    {
-                        var pct = (int)(5 + (downloaded * 90.0 / totalBytes));
-                        progress?.Report(Math.Min(pct, 95));
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                return (false, $"Download failed: {ex.Message}");
-            }
+            File.WriteAllText(VersionFilePath, PinnedVersion);
 
             progress?.Report(100);
-            return (true, $"SpoofDPI v{PinnedVersion} installed.");
+            return (true, $"SpoofDPI v{PinnedVersion} extracted.");
         }
         catch (Exception ex)
         {
-            return (false, $"Unexpected error: {ex.Message}");
+            return (false, $"Extraction failed: {ex.Message}");
         }
     }
 }

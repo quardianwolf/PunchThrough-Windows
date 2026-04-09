@@ -10,14 +10,9 @@ public class SpoofDPIService
 {
     private Process? _currentProcess;
 
-    private static readonly string LogFile = System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "pt_debug.log");
-
     private static void Log(string message)
     {
-        var line = $"[{DateTime.Now:o}] {message}\n";
-        try { System.IO.File.AppendAllText(LogFile, line); } catch { }
-        Debug.WriteLine(line);
+        Debug.WriteLine($"[{DateTime.Now:o}] {message}");
     }
 
     public async Task StartAsync(int port, string dnsAddress, bool enableDoH, bool enableSystemProxy, AppState appState)

@@ -18,5 +18,9 @@
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\spoofdpi.exe" />
+  </ItemGroup>
+
 
 </Project>
