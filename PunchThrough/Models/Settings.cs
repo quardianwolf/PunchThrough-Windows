@@ -5,13 +5,15 @@ namespace PunchThrough.Models;
 
 public class Settings
 {
-    public DnsServer DnsServer { get; set; } = DnsServer.Google;
+    public DnsServer DnsServer { get; set; } = DnsServer.Cloudflare;
     public string CustomDns { get; set; } = "";
     public int SpoofDpiPort { get; set; } = 8080;
     public bool EnableDoH { get; set; } = true;
     public bool EnableSystemProxy { get; set; } = true;
     public bool LaunchAtStartup { get; set; }
     public bool AutoConnect { get; set; }
+    public ProxyMode ProxyMode { get; set; } = ProxyMode.Full;
+    public List<string> CustomProxyDomains { get; set; } = new();
     public AppLanguage AppLanguage { get; set; } = AppLanguage.System;
 
     private static string SettingsDir =>

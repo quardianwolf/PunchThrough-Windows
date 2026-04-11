@@ -9,18 +9,23 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>PunchThrough</AssemblyName>
     <RootNamespace>PunchThrough</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>2.0.0</Version>
     <AssemblyTitle>PunchThrough</AssemblyTitle>
     <Description>DPI bypass tool for Windows</Description>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Assets\spoofdpi.exe" />
+    <EmbeddedResource Include="Assets\winws.exe" />
+    <EmbeddedResource Include="Assets\cygwin1.dll" />
+    <EmbeddedResource Include="Assets\WinDivert.dll" />
+    <EmbeddedResource Include="Assets\WinDivert64.sys" />
+    <EmbeddedResource Include="Assets\connected.ico" />
+    <EmbeddedResource Include="Assets\disconnected.ico" />
   </ItemGroup>
-
 
 </Project>

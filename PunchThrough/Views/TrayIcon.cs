@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Drawing;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Forms;
 using PunchThrough.Models;
@@ -12,6 +13,9 @@ public class TrayIcon : IDisposable
     private readonly AppState _appState;
     private readonly ContextMenuStrip _contextMenu;
     private SettingsWindow? _settingsWindow;
+
+    private static readonly Icon ConnectedIcon = LoadEmbeddedIcon("PunchThrough.Assets.connected.ico");
+    private static readonly Icon DisconnectedIcon = LoadEmbeddedIcon("PunchThrough.Assets.disconnected.ico");
 
     // Menu items that need updating
     private readonly ToolStripMenuItem _statusItem;
@@ -81,13 +85,10 @@ public class TrayIcon : IDisposable
 
     private void UpdateIcon()
     {
-        // Use a colored icon based on connection state
         _notifyIcon.Icon = _appState.ConnectionStatus.State switch
         {
-            ConnectionState.Connected => CreateColorIcon(Color.LimeGreen),
-            ConnectionState.Connecting or ConnectionState.Disconnecting => CreateColorIcon(Color.Orange),
-            ConnectionState.Error => CreateColorIcon(Color.Red),
-            _ => CreateColorIcon(Color.Gray)
+            ConnectionState.Connected => ConnectedIcon,
+            _ => DisconnectedIcon
         };
 
         _notifyIcon.Text = $"PunchThrough - {_appState.StatusText}";
@@ -129,14 +130,8 @@ public class TrayIcon : IDisposable
 
     private async void OnResetClick(object? sender, EventArgs e)
     {
-        // Stop SpoofDPI and disable proxy
         await BypassService.Instance.DisconnectAsync(_appState);
-
-        // Remove startup registry entry
         StartupService.SetEnabled(false);
-
-        // Disable system proxy (safety net)
-        ProxyService.SetProxy(false, 0);
 
         _appState.AddLog("All settings reset. You can safely delete PunchThrough.");
         Application.Current.Shutdown();
@@ -147,22 +142,11 @@ public class TrayIcon : IDisposable
         Application.Current.Shutdown();
     }
 
-    // Generate a simple colored circle icon programmatically
-    private static Icon CreateColorIcon(Color color)
+    private static Icon LoadEmbeddedIcon(string resourceName)
     {
-        using var bitmap = new Bitmap(16, 16);
-        using var graphics = Graphics.FromImage(bitmap);
-        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        graphics.Clear(Color.Transparent);
-
-        using var brush = new SolidBrush(color);
-        graphics.FillEllipse(brush, 1, 1, 14, 14);
-
-        // Add a subtle border
-        using var pen = new Pen(Color.FromArgb(80, 0, 0, 0), 1);
-        graphics.DrawEllipse(pen, 1, 1, 14, 14);
-
-        return Icon.FromHandle(bitmap.GetHicon());
+        var assembly = Assembly.GetExecutingAssembly();
+        using var stream = assembly.GetManifestResourceStream(resourceName);
+        return stream != null ? new Icon(stream, 16, 16) : SystemIcons.Application;
     }
 
     public void Dispose()

@@ -1,8 +1,8 @@
 # PunchThrough for Windows
 
-**One-click DPI bypass tool for Windows.** Unblock restricted websites and services without a VPN. PunchThrough acts as a local proxy that defeats Deep Packet Inspection (DPI) used by ISPs and network providers to block or throttle your traffic.
+**One-click DPI bypass tool for Windows.** Unblock restricted websites and services without a VPN. PunchThrough defeats Deep Packet Inspection (DPI) used by ISPs and network providers to block or throttle your traffic.
 
-Works like a local VPN alternative — no remote servers, no subscriptions, no speed loss. Your traffic stays yours.
+Works like a local VPN alternative — no remote servers, no subscriptions, no speed loss. No proxy — works at the packet level so games, streaming, and all apps work normally.
 
 [![GitHub](https://img.shields.io/github/v/release/quardianwolf/PunchThrough-Windows?label=Download&style=flat-square)](https://github.com/quardianwolf/PunchThrough-Windows/releases)
 
@@ -10,20 +10,28 @@ Works like a local VPN alternative — no remote servers, no subscriptions, no s
 
 ## How It Works
 
-PunchThrough runs [SpoofDPI](https://github.com/xvzc/SpoofDPI) as a local proxy and configures your system to route traffic through it. SpoofDPI fragments TLS handshake packets so that DPI systems can't inspect them — bypassing blocks without encrypting or rerouting your traffic.
+PunchThrough uses two techniques to bypass internet censorship:
 
-**No VPN. No tunnel. No speed penalty. Just unblocked internet.**
+1. **DNS over HTTPS (DoH)** — ISPs poison DNS responses for blocked domains. PunchThrough switches your DNS to Cloudflare's encrypted DoH, so your ISP can't tamper with DNS queries.
+
+2. **TLS Fragmentation** — Uses [zapret](https://github.com/bol-van/zapret) (winws) to fragment TLS ClientHello packets at the network driver level via WinDivert. DPI systems can't inspect fragmented handshakes, so blocks are bypassed.
+
+**No proxy. No tunnel. No speed penalty. Just unblocked internet.**
 
 ---
 
 ## Features
 
 - **One-click connect/disconnect** from the system tray
+- **Three bypass modes:**
+  - **Full Bypass** — all HTTPS traffic is protected
+  - **Discord Only** — only Discord is unblocked, other apps unaffected
+  - **Custom** — choose which sites to unblock with preset lists
 - **Auto-connect on startup** — set it once, forget about it
-- **Built-in installer** — downloads everything it needs on first run
-- **System proxy integration** — all apps benefit automatically
-- **DNS options** — Google, Cloudflare, Quad9, or custom DNS
-- **DNS over HTTPS (DoH)** support
+- **Built-in installer** — everything is bundled, no downloads needed
+- **No system proxy** — works at packet level, games and streaming unaffected
+- **DNS over HTTPS** — automatic encrypted DNS via Cloudflare
+- **Preset domain lists** — Discord, Twitter/X, Instagram, Reddit, TikTok, YouTube, and more
 - **Multi-language** — English, Turkish, French
 - **Lightweight** — runs silently in the system tray
 - **Clean uninstall** — "Reset & Quit" removes all traces
@@ -33,11 +41,25 @@ PunchThrough runs [SpoofDPI](https://github.com/xvzc/SpoofDPI) as a local proxy 
 ## Quick Start
 
 1. Download `PunchThrough.exe` from [Releases](https://github.com/quardianwolf/PunchThrough-Windows/releases)
-2. Run it — the setup screen will handle everything
-3. Click **Launch PunchThrough**
-4. Right-click the tray icon and hit **Connect**
+2. Run it as Administrator — the setup screen will handle everything
+3. Choose your bypass mode (Full, Discord Only, or Custom)
+4. Click **Install**, then **Launch PunchThrough**
 
 That's it. Your internet is now unblocked.
+
+**Note:** Administrator rights are required for the WinDivert network driver and DNS configuration.
+
+---
+
+## Bypass Modes
+
+| Mode | What it does | Best for |
+|------|-------------|----------|
+| **Full Bypass** | DPI bypass on all HTTPS + system DoH DNS | Unblocking everything |
+| **Discord Only** | DPI bypass only for Discord domains | Minimal impact, just Discord |
+| **Custom** | DPI bypass for selected domains | Fine-grained control |
+
+In Custom mode, you can add domains manually or use preset buttons: Discord, Twitter/X, Instagram, Reddit, TikTok, YouTube, Wikipedia, Patreon, Adult Sites.
 
 ---
 
@@ -46,7 +68,7 @@ That's it. Your internet is now unblocked.
 | What | Where |
 |------|-------|
 | Application | `%LocalAppData%\Programs\PunchThrough\PunchThrough.exe` |
-| SpoofDPI binary | `%LocalAppData%\PunchThrough\bin\spoofdpi.exe` |
+| Zapret engine | `%LocalAppData%\PunchThrough\zapret\` |
 | Settings | `%LocalAppData%\PunchThrough\settings.json` |
 | Desktop shortcut | `Desktop\PunchThrough.lnk` |
 | Startup entry | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` |
@@ -55,7 +77,7 @@ That's it. Your internet is now unblocked.
 
 ## Uninstall
 
-**From the app:** Right-click the tray icon > **Reset & Quit**. This stops SpoofDPI, clears proxy settings, removes the startup entry, and you can delete the files manually.
+**From the app:** Right-click the tray icon > **Reset & Quit**. This stops the bypass, restores DNS, removes the startup entry, and you can delete the files manually.
 
 **Manual removal:**
 1. Close PunchThrough from the tray
@@ -69,40 +91,42 @@ That's it. Your internet is now unblocked.
 ## FAQ
 
 **Is this a VPN?**
-No. PunchThrough doesn't encrypt or tunnel your traffic. It only fragments TLS handshake packets to prevent DPI systems from identifying and blocking them. Your ISP can still see which sites you visit — they just can't block them via DPI.
+No. PunchThrough doesn't encrypt or tunnel your traffic. It fragments TLS handshake packets to prevent DPI systems from identifying and blocking them, and uses encrypted DNS to bypass DNS poisoning.
 
 **Will this slow down my internet?**
-No. Traffic goes through a local proxy on your own machine. There's no remote server in the middle.
+No. There's no proxy or tunnel. Zapret works at the packet level — it only touches TLS handshakes, not your actual data.
 
-**Windows Defender is using high CPU?**
-PunchThrough automatically adds a Defender exclusion on first connect. If you skipped the UAC prompt, you can add it manually:
-```powershell
-# Run as Administrator
-Add-MpPreference -ExclusionProcess "spoofdpi.exe"
-```
+**Why does it need Administrator?**
+The WinDivert driver requires admin to load, and DNS configuration requires admin to change system settings.
+
+**Will this break my games?**
+No. Unlike proxy-based solutions, PunchThrough works at the packet level. Games, streaming, and all apps work normally. In Discord Only or Custom mode, only selected domains are affected.
 
 **My internet breaks after closing PunchThrough?**
-Use the **Quit** button in the tray menu — it cleans up proxy settings automatically. If you killed the process directly, open Windows Settings > Network > Proxy and turn off manual proxy.
+Use the **Quit** button in the tray menu — it restores DNS automatically. If you killed the process directly, your DNS might still be set to Cloudflare (1.1.1.1). Change it back in Windows Settings > Network > DNS, or run: `netsh interface ip set dns "YOUR_ADAPTER" dhcp`
 
 ---
 
 ## Build from Source
 
 ```bash
-# Build
 dotnet publish PunchThrough\PunchThrough.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
-
-# Output
-PunchThrough\bin\Release\net9.0-windows\win-x64\publish\PunchThrough.exe
 ```
 
-Requires .NET 9 SDK.
+Requires .NET 9 SDK. Zapret (winws.exe) binaries must be placed in `PunchThrough\Assets\`.
+
+---
+
+## Credits
+
+- [zapret](https://github.com/bol-van/zapret) by bol-van — packet-level DPI bypass engine
+- [WinDivert](https://reqrypt.org/windivert.html) — Windows network packet capture/divert driver
 
 ---
 
 ## Keywords
 
-DPI bypass, internet censorship, website unblock, SpoofDPI, local proxy, VPN alternative, Windows proxy tool, network freedom, anti-censorship, deep packet inspection bypass, free VPN alternative, unblock websites Windows, ISP bypass tool, TLS fragmentation, internet freedom tool
+DPI bypass, internet censorship, website unblock, local proxy, VPN alternative, Windows proxy tool, network freedom, anti-censorship, deep packet inspection bypass, free VPN alternative, unblock websites Windows, ISP bypass tool, TLS fragmentation, internet freedom tool, zapret, WinDivert, DNS over HTTPS, DoH
 
 ---
 
@@ -110,30 +134,34 @@ DPI bypass, internet censorship, website unblock, SpoofDPI, local proxy, VPN alt
 
 # PunchThrough Windows
 
-**Windows icin tek tikla DPI bypass araci.** VPN olmadan engellenmis sitelere ve servislere erisin. PunchThrough, ISP'lerin ve ag saglayicilarinin trafiginizi engellemek icin kullandigi Derin Paket Incelemesini (DPI) alt eden yerel bir proxy olarak calisir.
+**Windows icin tek tikla DPI bypass araci.** VPN olmadan engellenmis sitelere ve servislere erisin. PunchThrough, ISP'lerin trafigi engellemek icin kullandigi Derin Paket Incelemesini (DPI) paket seviyesinde alt eder.
 
-Yerel VPN alternatifi gibi calisir — uzak sunucu yok, abonelik yok, hiz kaybi yok.
+Yerel VPN alternatifi — uzak sunucu yok, abonelik yok, hiz kaybi yok. Proxy yok — paket seviyesinde calistigi icin oyunlar, streaming ve tum uygulamalar normal calisir.
 
 ---
 
 ## Nasil Calisir
 
-PunchThrough, [SpoofDPI](https://github.com/xvzc/SpoofDPI)'yi yerel proxy olarak calistirir ve sisteminizi trafigi onun uzerinden yonlendirecek sekilde ayarlar. SpoofDPI, TLS el sikisma paketlerini parcalayarak DPI sistemlerinin bunlari incelemesini engeller.
+1. **DNS over HTTPS (DoH)** — ISP'ler engelli sitelerin DNS yanitlarini zehirler. PunchThrough DNS'inizi Cloudflare'in sifreli DoH'una cevirir.
+2. **TLS Parcalama** — zapret (winws) kullanarak TLS ClientHello paketlerini WinDivert ile parcalar. DPI sistemleri parcalanmis el sikismalari inceleyemez.
 
-**VPN yok. Tunel yok. Hiz kaybi yok. Sadece engelsiz internet.**
+**Proxy yok. Tunel yok. Hiz kaybi yok. Sadece engelsiz internet.**
 
 ---
 
 ## Ozellikler
 
 - **Tek tikla baglan/kes** — sistem tepsisinden
-- **Baslangicta otomatik baglanma** — bir kez ayarla, unut gitsin
-- **Dahili kurulum** — ilk calistirmada her seyi kendisi indirip kurar
-- **Sistem proxy entegrasyonu** — tum uygulamalar otomatik faydalanir
-- **DNS secenekleri** — Google, Cloudflare, Quad9 veya ozel DNS
-- **DNS over HTTPS (DoH)** destegi
+- **Uc bypass modu:**
+  - **Tam Bypass** — tum HTTPS trafigi korunur
+  - **Sadece Discord** — sadece Discord engeli kaldirilir
+  - **Ozel** — hangi sitelerin engelini kaldirmak istedigini sec
+- **Baslangicta otomatik baglanma**
+- **Dahili kurulum** — her sey gomulu, indirme gerekmez
+- **Sistem proxy'si yok** — paket seviyesinde calisir, oyunlar etkilenmez
+- **DNS over HTTPS** — otomatik sifreli DNS
+- **Hazir domain listeleri** — Discord, Twitter/X, Instagram, Reddit, TikTok, YouTube ve dahasi
 - **Cok dilli** — Ingilizce, Turkce, Fransizca
-- **Hafif** — sistem tepsisinde sessizce calisir
 - **Temiz kaldirma** — "Sifirla & Cik" ile tum izleri siler
 
 ---
@@ -141,9 +169,9 @@ PunchThrough, [SpoofDPI](https://github.com/xvzc/SpoofDPI)'yi yerel proxy olarak
 ## Hizli Baslangic
 
 1. [Releases](https://github.com/quardianwolf/PunchThrough-Windows/releases) sayfasindan `PunchThrough.exe` indirin
-2. Calistirin — kurulum ekrani her seyi halleder
-3. **Launch PunchThrough** butonuna basin
-4. Tepsi simgesine sag tiklayin ve **Baglan** deyin
+2. Yonetici olarak calistirin — kurulum ekrani her seyi halleder
+3. Bypass modunuzu secin (Tam, Sadece Discord veya Ozel)
+4. **Install** ve ardindan **Launch PunchThrough** tiklayin
 
 Bu kadar. Internetiniz artik engelsiz.
 
@@ -154,43 +182,34 @@ Bu kadar. Internetiniz artik engelsiz.
 | Ne | Nerede |
 |----|--------|
 | Uygulama | `%LocalAppData%\Programs\PunchThrough\PunchThrough.exe` |
-| SpoofDPI | `%LocalAppData%\PunchThrough\bin\spoofdpi.exe` |
+| Zapret motoru | `%LocalAppData%\PunchThrough\zapret\` |
 | Ayarlar | `%LocalAppData%\PunchThrough\settings.json` |
 | Masaustu kisayolu | `Masaustu\PunchThrough.lnk` |
-| Baslangic kaydi | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` |
 
 ---
 
 ## Kaldirma
 
-**Uygulamadan:** Tepsi simgesine sag tikla > **Sifirla & Cik**. SpoofDPI'yi durdurur, proxy ayarlarini temizler, baslangic kaydini siler.
+**Uygulamadan:** Tepsi simgesine sag tikla > **Sifirla & Cik**. Bypass'i durdurur, DNS'i geri yukler, baslangic kaydini siler.
 
 **Manuel kaldirma:**
 1. PunchThrough'u tepsiden kapatin
-2. `%LocalAppData%\Programs\PunchThrough\` klasorunu silin
-3. `%LocalAppData%\PunchThrough\` klasorunu silin
+2. `%LocalAppData%\Programs\PunchThrough\` silin
+3. `%LocalAppData%\PunchThrough\` silin
 4. Masaustu kisayolunu silin
-5. Baslangic kaydini silin: `regedit` > `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` > `PunchThrough`'u silin
 
 ---
 
 ## SSS
 
 **Bu bir VPN mi?**
-Hayir. PunchThrough trafiginizi sifrelemiyor veya tunellemiyor. Sadece TLS el sikisma paketlerini parcalayarak DPI sistemlerinin bunlari tanimlamasini ve engellemesini onler.
+Hayir. Sadece TLS el sikisma paketlerini parcalar ve sifreli DNS kullanir. Trafiginiz sifrelenmez veya tunellenmez.
 
-**Internetimi yavaslatir mi?**
-Hayir. Trafik kendi makinenizdeki yerel bir proxy uzerinden gecer. Arada uzak sunucu yok.
+**Oyunlarimi bozar mi?**
+Hayir. Proxy tabanli cozumlerden farkli olarak paket seviyesinde calisir. Oyunlar, streaming ve tum uygulamalar normal calisir.
 
-**Windows Defender yuksek CPU kullaniyor?**
-PunchThrough ilk baglantiginda otomatik olarak Defender istisnasi ekler. UAC isteini atladiysan manuel ekleyebilirsin:
-```powershell
-# Yonetici olarak calistirin
-Add-MpPreference -ExclusionProcess "spoofdpi.exe"
-```
-
-**PunchThrough'u kapattiktan sonra internet calismiyorsa?**
-Tepsi menusundeki **Cikis** butonunu kullanin — proxy ayarlarini otomatik temizler. Islemi dogrudan sonlandirdiysan: Windows Ayarlar > Ag > Proxy > Manuel proxy'yi kapatin.
+**Neden Yonetici izni gerekiyor?**
+WinDivert ag surucusu ve DNS yapilandirmasi icin yonetici hakki gereklidir.
 
 ---
 
@@ -198,111 +217,59 @@ Tepsi menusundeki **Cikis** butonunu kullanin — proxy ayarlarini otomatik temi
 
 # PunchThrough pour Windows
 
-**Outil de contournement DPI en un clic pour Windows.** Debloquez les sites et services restreints sans VPN. PunchThrough fonctionne comme un proxy local qui contourne l'Inspection Approfondie des Paquets (DPI) utilisee par les FAI et les fournisseurs de reseau.
+**Outil de contournement DPI en un clic pour Windows.** Debloquez les sites et services restreints sans VPN. PunchThrough contourne l'Inspection Approfondie des Paquets (DPI) au niveau des paquets reseau.
 
-Fonctionne comme une alternative VPN locale — pas de serveur distant, pas d'abonnement, pas de perte de vitesse.
+Alternative VPN locale — pas de serveur distant, pas d'abonnement, pas de perte de vitesse. Pas de proxy — fonctionne au niveau des paquets, les jeux et le streaming ne sont pas affectes.
 
 ---
 
 ## Comment ca marche
 
-PunchThrough execute [SpoofDPI](https://github.com/xvzc/SpoofDPI) comme proxy local et configure votre systeme pour acheminer le trafic a travers lui. SpoofDPI fragmente les paquets de handshake TLS pour que les systemes DPI ne puissent pas les inspecter.
+1. **DNS over HTTPS (DoH)** — Les FAI empoisonnent les reponses DNS. PunchThrough bascule vers le DoH chiffre de Cloudflare.
+2. **Fragmentation TLS** — Utilise zapret (winws) pour fragmenter les paquets TLS ClientHello via WinDivert.
 
-**Pas de VPN. Pas de tunnel. Pas de ralentissement. Juste un internet debloque.**
+**Pas de proxy. Pas de tunnel. Pas de ralentissement. Juste un internet debloque.**
 
 ---
 
 ## Fonctionnalites
 
-- **Connexion/deconnexion en un clic** depuis la barre systeme
-- **Connexion automatique au demarrage** — configurez une fois, oubliez
-- **Installateur integre** — telecharge tout ce qu'il faut au premier lancement
-- **Integration proxy systeme** — toutes les applications en beneficient
-- **Options DNS** — Google, Cloudflare, Quad9 ou DNS personnalise
-- **Support DNS over HTTPS (DoH)**
+- **Connexion/deconnexion en un clic**
+- **Trois modes de bypass :**
+  - **Bypass complet** — tout le trafic HTTPS est protege
+  - **Discord uniquement** — seul Discord est debloque
+  - **Personnalise** — choisissez quels sites debloquer
+- **Connexion automatique au demarrage**
+- **Installateur integre** — tout est inclus
+- **Pas de proxy systeme** — fonctionne au niveau des paquets
+- **DNS over HTTPS** — DNS chiffre automatique
 - **Multilingue** — anglais, turc, francais
-- **Leger** — fonctionne silencieusement dans la barre systeme
-- **Desinstallation propre** — "Reinitialiser & Quitter" supprime toutes les traces
+- **Desinstallation propre** — "Reinitialiser & Quitter"
 
 ---
 
 ## Demarrage rapide
 
 1. Telechargez `PunchThrough.exe` depuis [Releases](https://github.com/quardianwolf/PunchThrough-Windows/releases)
-2. Executez-le — l'ecran de configuration s'occupe de tout
-3. Cliquez sur **Launch PunchThrough**
-4. Clic droit sur l'icone de la barre systeme et cliquez sur **Connecter**
-
-C'est tout. Votre internet est maintenant debloque.
-
----
-
-## Emplacements des fichiers
-
-| Quoi | Ou |
-|------|-----|
-| Application | `%LocalAppData%\Programs\PunchThrough\PunchThrough.exe` |
-| Binaire SpoofDPI | `%LocalAppData%\PunchThrough\bin\spoofdpi.exe` |
-| Parametres | `%LocalAppData%\PunchThrough\settings.json` |
-| Raccourci bureau | `Bureau\PunchThrough.lnk` |
-| Entree demarrage | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` |
+2. Executez en tant qu'administrateur
+3. Choisissez votre mode de bypass
+4. Cliquez sur **Install**, puis **Launch PunchThrough**
 
 ---
 
 ## Desinstallation
 
-**Depuis l'application :** Clic droit sur l'icone > **Reinitialiser & Quitter**. Cela arrete SpoofDPI, nettoie les parametres proxy et supprime l'entree de demarrage.
-
-**Suppression manuelle :**
-1. Fermez PunchThrough depuis la barre systeme
-2. Supprimez `%LocalAppData%\Programs\PunchThrough\`
-3. Supprimez `%LocalAppData%\PunchThrough\`
-4. Supprimez le raccourci bureau
-5. Supprimez l'entree de demarrage : `regedit` > `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` > supprimez `PunchThrough`
+Clic droit sur l'icone > **Reinitialiser & Quitter**. Arrete le bypass, restaure le DNS, supprime l'entree de demarrage.
 
 ---
 
-## FAQ
+## Credits
 
-**C'est un VPN ?**
-Non. PunchThrough ne chiffre ni ne tunnelise votre trafic. Il fragmente uniquement les paquets de handshake TLS pour empecher les systemes DPI de les identifier et de les bloquer.
-
-**Ca va ralentir mon internet ?**
-Non. Le trafic passe par un proxy local sur votre propre machine. Aucun serveur distant implique.
-
-**Windows Defender utilise beaucoup de CPU ?**
-PunchThrough ajoute automatiquement une exclusion Defender a la premiere connexion. Si vous avez refuse l'invite UAC, ajoutez-la manuellement :
-```powershell
-# Executer en tant qu'administrateur
-Add-MpPreference -ExclusionProcess "spoofdpi.exe"
-```
-
-**Mon internet ne marche plus apres avoir ferme PunchThrough ?**
-Utilisez le bouton **Quitter** dans le menu de la barre systeme — il nettoie automatiquement les parametres proxy. Si vous avez tue le processus directement : Parametres Windows > Reseau > Proxy > desactivez le proxy manuel.
-
----
-
-## Compilation depuis les sources
-
-```bash
-# Compiler
-dotnet publish PunchThrough\PunchThrough.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
-
-# Resultat
-PunchThrough\bin\Release\net9.0-windows\win-x64\publish\PunchThrough.exe
-```
-
-Necessite .NET 9 SDK.
-
----
-
-## Mots-cles
-
-Contournement DPI, censure internet, debloquer sites, SpoofDPI, proxy local, alternative VPN, outil proxy Windows, liberte internet, anti-censure, contournement inspection paquets, alternative VPN gratuite, debloquer sites Windows, outil contournement FAI, fragmentation TLS, outil liberte internet
+- [zapret](https://github.com/bol-van/zapret) par bol-van
+- [WinDivert](https://reqrypt.org/windivert.html) par basil00
 
 ---
 
 ## License
 
 MIT
-

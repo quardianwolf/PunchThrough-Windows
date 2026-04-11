@@ -1,165 +1,246 @@
 <Window x:Class="PunchThrough.Views.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="PunchThrough Settings"
-        Width="520" Height="420"
+        Title="PunchThrough"
+        Width="540" Height="460"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
-        Background="#F5F5F5">
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
 
-    <TabControl Margin="8" x:Name="MainTabs">
+    <Border CornerRadius="12" BorderBrush="#E0E0E0" BorderThickness="1">
+        <Border.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#FFFFFF" Offset="0"/>
+                <GradientStop Color="#FAFAFA" Offset="1"/>
+            </LinearGradientBrush>
+        </Border.Background>
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" ShadowDepth="3" Opacity="0.1"/>
+        </Border.Effect>
 
-        <!-- General Tab -->
-        <TabItem x:Name="TabGeneral" Header="General">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
-                <StackPanel>
-                    <!-- Startup Section -->
-                    <TextBlock Text="Startup" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
-                    <CheckBox x:Name="ChkLaunchAtStartup" Content="Launch at Startup" Margin="0,0,0,4"
-                              Checked="OnLaunchAtStartupChanged" Unchecked="OnLaunchAtStartupChanged"/>
-                    <CheckBox x:Name="ChkAutoConnect" Content="Auto-connect on startup" Margin="0,0,0,16"
-                              Checked="OnAutoConnectChanged" Unchecked="OnAutoConnectChanged"/>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-                    <!-- Language Section -->
-                    <TextBlock Text="Language" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
-                    <ComboBox x:Name="CmbLanguage" Width="200" HorizontalAlignment="Left" Margin="0,0,0,4"
-                              SelectionChanged="OnLanguageChanged"/>
-                    <TextBlock x:Name="TxtRestartHint" Text="Restart the app to apply language changes."
-                               FontSize="11" Foreground="Gray" Margin="0,0,0,16"/>
-
-                    <!-- Connection Status Section -->
-                    <TextBlock Text="Connection" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Status" Grid.Column="0"/>
-                        <StackPanel Orientation="Horizontal" Grid.Column="1">
-                            <Ellipse x:Name="StatusDot" Width="10" Height="10" Margin="0,0,6,0"/>
-                            <TextBlock x:Name="TxtStatus" Foreground="Gray"/>
-                        </StackPanel>
-                    </Grid>
-
-                    <Grid x:Name="ConnectedInfo" Margin="0,0,0,4" Visibility="Collapsed">
-                        <Grid.RowDefinitions>
-                            <RowDefinition/>
-                            <RowDefinition/>
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Method" Grid.Row="0" Grid.Column="0"/>
-                        <TextBlock x:Name="TxtMethod" Grid.Row="0" Grid.Column="1" Foreground="Gray"/>
-                        <TextBlock Text="DNS" Grid.Row="1" Grid.Column="0" Margin="0,4,0,0"/>
-                        <TextBlock x:Name="TxtDns" Grid.Row="1" Grid.Column="1" Foreground="Gray" Margin="0,4,0,0"/>
-                    </Grid>
-
-                    <!-- About Section -->
-                    <TextBlock Text="About" FontWeight="SemiBold" FontSize="13" Margin="0,16,0,8"/>
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="PunchThrough for Windows" Grid.Column="0"/>
-                        <TextBlock Text="v1.0.0" Foreground="Gray" Grid.Column="1"/>
-                    </Grid>
-                    <TextBlock>
-                        <Hyperlink x:Name="GitHubLink" RequestNavigate="OnGitHubLinkClick"
-                                   NavigateUri="https://github.com/quardianwolf/PunchThrough-Windows">
-                            GitHub Repository
-                        </Hyperlink>
-                    </TextBlock>
-                </StackPanel>
-            </ScrollViewer>
-        </TabItem>
-
-        <!-- Bypass Tab -->
-        <TabItem x:Name="TabBypass" Header="Bypass">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
-                <StackPanel>
-                    <!-- DNS Section -->
-                    <TextBlock Text="DNS" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
-                    <ComboBox x:Name="CmbDnsServer" Width="200" HorizontalAlignment="Left" Margin="0,0,0,8"
-                              SelectionChanged="OnDnsServerChanged"/>
-                    <StackPanel x:Name="CustomDnsPanel" Visibility="Collapsed" Margin="0,0,0,8">
-                        <TextBox x:Name="TxtCustomDns" Width="200" HorizontalAlignment="Left"
-                                 TextChanged="OnCustomDnsChanged"/>
+            <!-- Title bar -->
+            <Border Grid.Row="0" Background="#F5F5F5" CornerRadius="12,12,0,0"
+                    MouseLeftButtonDown="OnTitleBarDrag" Padding="16,10">
+                <Grid>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="24" Height="24" CornerRadius="12" Margin="0,0,10,0">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#4CAF50" Offset="0"/>
+                                    <GradientStop Color="#2E7D32" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <TextBlock Text="PT" FontSize="9" FontWeight="Bold" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="PunchThrough" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="#333" VerticalAlignment="Center"/>
+                        <TextBlock Text="v2.0" FontSize="10" Foreground="#BBB"
+                                   VerticalAlignment="Center" Margin="8,2,0,0"/>
                     </StackPanel>
-                    <CheckBox x:Name="ChkDoH" Content="Use DNS over HTTPS (DoH)" Margin="0,0,0,16"
-                              Checked="OnDoHChanged" Unchecked="OnDoHChanged"/>
+                    <Button Content="&#x2715;" HorizontalAlignment="Right" VerticalAlignment="Center"
+                            FontSize="14" Foreground="#999" Background="Transparent"
+                            BorderThickness="0" Cursor="Hand" Padding="6,2"
+                            Click="OnCloseClick"/>
+                </Grid>
+            </Border>
 
-                    <!-- SpoofDPI Options -->
-                    <TextBlock Text="SpoofDPI Options" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Port" VerticalAlignment="Center"/>
-                        <TextBox x:Name="TxtPort" Width="80" Grid.Column="1"
-                                 TextChanged="OnPortChanged"/>
-                    </Grid>
-                    <CheckBox x:Name="ChkSystemProxy" Content="Configure System Proxy" Margin="0,0,0,4"
-                              Checked="OnSystemProxyChanged" Unchecked="OnSystemProxyChanged"/>
-                    <TextBlock Text="System proxy will route traffic through SpoofDPI automatically."
-                               FontSize="11" Foreground="Gray" Margin="0,0,0,16"/>
+            <!-- Content -->
+            <TabControl Grid.Row="1" x:Name="MainTabs" Margin="0" Padding="0"
+                        BorderThickness="0" Background="Transparent">
+                <TabControl.Resources>
+                    <Style TargetType="TabItem">
+                        <Setter Property="Padding" Value="14,8"/>
+                        <Setter Property="FontSize" Value="12"/>
+                    </Style>
+                </TabControl.Resources>
 
-                    <!-- Installation Status -->
-                    <TextBlock Text="Installation Status" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <TextBlock Text="SpoofDPI" Margin="0,0,12,0"/>
-                        <Ellipse x:Name="InstallDot" Width="10" Height="10" Margin="0,0,6,0"/>
-                        <TextBlock x:Name="TxtInstallStatus" Foreground="Gray"/>
-                    </StackPanel>
-                    <StackPanel x:Name="InstallHintPanel" Orientation="Horizontal" Visibility="Collapsed" Margin="0,4,0,0">
-                        <TextBlock Text="scoop install spoofdpi" FontFamily="Consolas" FontSize="11" Foreground="Gray" Margin="0,0,8,0"/>
-                        <Button Content="Copy" FontSize="11" Padding="8,2" Click="OnCopyInstallCommand"/>
-                    </StackPanel>
-                </StackPanel>
-            </ScrollViewer>
-        </TabItem>
+                <!-- General Tab -->
+                <TabItem x:Name="TabGeneral">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+                        <StackPanel>
+                            <!-- Startup -->
+                            <TextBlock x:Name="LblStartup" Text="Startup" FontWeight="SemiBold"
+                                       FontSize="13" Foreground="#333" Margin="0,0,0,8"/>
+                            <CheckBox x:Name="ChkLaunchAtStartup" Margin="0,0,0,4"
+                                      Checked="OnLaunchAtStartupChanged" Unchecked="OnLaunchAtStartupChanged"/>
+                            <CheckBox x:Name="ChkAutoConnect" Margin="0,0,0,16"
+                                      Checked="OnAutoConnectChanged" Unchecked="OnAutoConnectChanged"/>
 
-        <!-- Logs Tab -->
-        <TabItem x:Name="TabLogs" Header="Logs">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+                            <!-- Language -->
+                            <TextBlock x:Name="LblLanguage" Text="Language" FontWeight="SemiBold"
+                                       FontSize="13" Foreground="#333" Margin="0,0,0,8"/>
+                            <ComboBox x:Name="CmbLanguage" Width="220" HorizontalAlignment="Left" Margin="0,0,0,16"
+                                      SelectionChanged="OnLanguageChanged"/>
 
-                <!-- Log list or empty state -->
-                <ListBox x:Name="LogList" Grid.Row="0" BorderThickness="0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal" Margin="4,2">
-                                <TextBlock Text="{Binding LevelIcon}" Width="20" FontSize="12"/>
+                            <!-- Connection -->
+                            <TextBlock x:Name="LblConnection" Text="Connection" FontWeight="SemiBold"
+                                       FontSize="13" Foreground="#333" Margin="0,0,0,8"/>
+                            <Border Background="#F8F8F8" CornerRadius="6" Padding="12,8" Margin="0,0,0,4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="LblStatus" Text="Status" Foreground="#666"/>
+                                    <StackPanel Orientation="Horizontal" Grid.Column="1">
+                                        <Ellipse x:Name="StatusDot" Width="8" Height="8" Margin="0,0,6,0"/>
+                                        <TextBlock x:Name="TxtStatus" Foreground="#555"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border x:Name="ConnectedInfo" Background="#F0F8F0" CornerRadius="6"
+                                    Padding="12,8" Margin="0,0,0,4" Visibility="Collapsed">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding Message}" FontFamily="Consolas" FontSize="11"/>
-                                    <TextBlock Text="{Binding Timestamp, StringFormat={}{0:HH:mm:ss}}"
-                                               FontSize="10" Foreground="Gray"/>
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="80"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="LblMethod" Text="Method" Foreground="#666"/>
+                                        <TextBlock x:Name="TxtMethod" Grid.Column="1" Foreground="#4CAF50" FontWeight="Medium"/>
+                                    </Grid>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="80"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="DNS" Foreground="#666"/>
+                                        <TextBlock x:Name="TxtDns" Grid.Column="1" Foreground="#555"/>
+                                    </Grid>
                                 </StackPanel>
+                            </Border>
+
+                            <!-- About -->
+                            <TextBlock x:Name="LblAbout" Text="About" FontWeight="SemiBold"
+                                       FontSize="13" Foreground="#333" Margin="0,16,0,8"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontSize="12" Foreground="#888">
+                                    <Hyperlink x:Name="GitHubLink" RequestNavigate="OnGitHubLinkClick"
+                                               NavigateUri="https://github.com/quardianwolf/PunchThrough-Windows"
+                                               Foreground="#4CAF50" TextDecorations="None">
+                                        GitHub
+                                    </Hyperlink>
+                                </TextBlock>
+                                <TextBlock Text="  ·  " Foreground="#DDD" FontSize="12"/>
+                                <TextBlock FontSize="12" Foreground="#888">
+                                    <Hyperlink RequestNavigate="OnGitHubLinkClick"
+                                               NavigateUri="https://atilla.dev"
+                                               Foreground="#4CAF50" TextDecorations="None">
+                                        atilla.dev
+                                    </Hyperlink>
+                                </TextBlock>
                             </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
 
-                <TextBlock x:Name="TxtNoLogs" Grid.Row="0"
-                           Text="No Logs" HorizontalAlignment="Center" VerticalAlignment="Center"
-                           Foreground="Gray" FontSize="14" Visibility="Visible"/>
+                <!-- Bypass Tab -->
+                <TabItem x:Name="TabBypass">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+                        <StackPanel>
+                            <!-- Bypass Mode -->
+                            <TextBlock x:Name="LblBypassMode" Text="Bypass Mode" FontWeight="SemiBold"
+                                       FontSize="13" Foreground="#333" Margin="0,0,0,8"/>
+                            <ComboBox x:Name="CmbProxyMode" Width="220" HorizontalAlignment="Left" Margin="0,0,0,4"
+                                      SelectionChanged="OnProxyModeChanged"/>
+                            <TextBlock x:Name="TxtProxyModeDesc" FontSize="11" Foreground="#999"
+                                       Margin="0,0,0,14" TextWrapping="Wrap"/>
 
-                <!-- Footer -->
-                <Border Grid.Row="1" BorderThickness="0,1,0,0" BorderBrush="#DDD" Padding="8,6">
+                            <!-- Custom Domains -->
+                            <StackPanel x:Name="CustomDomainsPanel" Visibility="Collapsed" Margin="0,0,0,14">
+                                <TextBlock x:Name="LblCustomDomains" Text="Custom Domains" FontWeight="SemiBold"
+                                           FontSize="13" Foreground="#333" Margin="0,0,0,8"/>
+
+                                <TextBlock x:Name="LblQuickAdd" Text="Quick add:" FontSize="11"
+                                           Foreground="#999" Margin="0,0,0,4"/>
+                                <WrapPanel x:Name="PresetPanel" Margin="0,0,0,8"/>
+
+                                <Border Background="#F8F8F8" CornerRadius="6" Padding="2" Margin="0,0,0,6">
+                                    <ListBox x:Name="DomainList" Height="90" FontFamily="Consolas" FontSize="11"
+                                             BorderThickness="0" Background="Transparent"/>
+                                </Border>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="TxtNewDomain" FontFamily="Consolas" FontSize="11"
+                                             VerticalContentAlignment="Center" Padding="6,4"/>
+                                    <Button x:Name="BtnAdd" Content="+" Grid.Column="1" Margin="4,0,0,0"
+                                            Padding="10,4" FontSize="12" Cursor="Hand" Click="OnAddDomain"/>
+                                    <Button x:Name="BtnRemove" Content="-" Grid.Column="2" Margin="4,0,0,0"
+                                            Padding="10,4" FontSize="12" Cursor="Hand" Click="OnRemoveDomain"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- DNS -->
+                            <TextBlock Text="DNS" FontWeight="SemiBold" FontSize="13"
+                                       Foreground="#333" Margin="0,0,0,8"/>
+                            <ComboBox x:Name="CmbDnsServer" Width="220" HorizontalAlignment="Left" Margin="0,0,0,8"
+                                      SelectionChanged="OnDnsServerChanged"/>
+                            <StackPanel x:Name="CustomDnsPanel" Visibility="Collapsed" Margin="0,0,0,8">
+                                <TextBox x:Name="TxtCustomDns" Width="220" HorizontalAlignment="Left"
+                                         Padding="6,4" TextChanged="OnCustomDnsChanged"/>
+                            </StackPanel>
+                            <CheckBox x:Name="ChkDoH" Margin="0,0,0,8"
+                                      Checked="OnDoHChanged" Unchecked="OnDoHChanged"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Logs Tab -->
+                <TabItem x:Name="TabLogs">
                     <Grid>
-                        <TextBlock x:Name="TxtLogCount" Text="0 entries" Foreground="Gray" FontSize="11"/>
-                        <Button x:Name="BtnClearLogs" Content="Clear Logs" HorizontalAlignment="Right"
-                                FontSize="11" Padding="8,2" Click="OnClearLogs"/>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <ListBox x:Name="LogList" Grid.Row="0" BorderThickness="0" Background="Transparent"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="4,2">
+                                        <TextBlock Text="{Binding LevelIcon}" Width="20" FontSize="12"/>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Message}" FontFamily="Consolas" FontSize="11"
+                                                       Foreground="#444"/>
+                                            <TextBlock Text="{Binding Timestamp, StringFormat={}{0:HH:mm:ss}}"
+                                                       FontSize="10" Foreground="#BBB"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <TextBlock x:Name="TxtNoLogs" Grid.Row="0"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#CCC" FontSize="13"/>
+
+                        <Border Grid.Row="1" Background="#F8F8F8" Padding="12,8"
+                                CornerRadius="0,0,12,12">
+                            <Grid>
+                                <TextBlock x:Name="TxtLogCount" Foreground="#999" FontSize="11"
+                                           VerticalAlignment="Center"/>
+                                <Button x:Name="BtnClearLogs" HorizontalAlignment="Right"
+                                        FontSize="11" Padding="12,4" Cursor="Hand" Click="OnClearLogs"/>
+                            </Grid>
+                        </Border>
                     </Grid>
-                </Border>
-            </Grid>
-        </TabItem>
-    </TabControl>
+                </TabItem>
+            </TabControl>
+        </Grid>
+    </Border>
 </Window>

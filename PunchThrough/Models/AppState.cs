@@ -8,13 +8,15 @@ public class AppState : INotifyPropertyChanged
 {
     private ConnectionStatus _connectionStatus = ConnectionStatus.Disconnected;
     private BypassMethod _selectedMethod = BypassMethod.SpoofDPI;
-    private DnsServer _dnsServer = DnsServer.Google;
+    private DnsServer _dnsServer = DnsServer.Cloudflare;
     private string _customDns = "";
     private int _spoofDpiPort = 8080;
     private bool _enableDoH = true;
     private bool _enableSystemProxy = true;
     private bool _launchAtStartup;
     private bool _autoConnect;
+    private ProxyMode _proxyMode = ProxyMode.Full;
+    private List<string> _customProxyDomains = new();
     private AppLanguage _appLanguage = AppLanguage.System;
 
     public ConnectionStatus ConnectionStatus
@@ -69,6 +71,18 @@ public class AppState : INotifyPropertyChanged
     {
         get => _autoConnect;
         set => SetField(ref _autoConnect, value);
+    }
+
+    public ProxyMode ProxyMode
+    {
+        get => _proxyMode;
+        set => SetField(ref _proxyMode, value);
+    }
+
+    public List<string> CustomProxyDomains
+    {
+        get => _customProxyDomains;
+        set { _customProxyDomains = value; OnPropertyChanged(); }
     }
 
     public AppLanguage AppLanguage
@@ -143,6 +157,8 @@ public class AppState : INotifyPropertyChanged
         _enableSystemProxy = settings.EnableSystemProxy;
         _launchAtStartup = settings.LaunchAtStartup;
         _autoConnect = settings.AutoConnect;
+        _proxyMode = settings.ProxyMode;
+        _customProxyDomains = settings.CustomProxyDomains;
         _appLanguage = settings.AppLanguage;
     }
 
@@ -157,6 +173,8 @@ public class AppState : INotifyPropertyChanged
             EnableSystemProxy = EnableSystemProxy,
             LaunchAtStartup = LaunchAtStartup,
             AutoConnect = AutoConnect,
+            ProxyMode = ProxyMode,
+            CustomProxyDomains = CustomProxyDomains,
             AppLanguage = AppLanguage
         };
         settings.Save();

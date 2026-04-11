@@ -57,19 +57,10 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        // Only clean up if we're the primary instance (have appState)
         if (_appState != null)
         {
-            try
-            {
-                foreach (var proc in Process.GetProcessesByName("spoofdpi"))
-                {
-                    try { proc.Kill(); } catch { }
-                }
-            }
-            catch { }
-
-            ProxyService.SetProxy(false, 0);
+            try { BypassService.Instance.DisconnectAsync(_appState).Wait(3000); } catch { }
+            DnsService.Cleanup(); // Safety net
         }
 
         _trayIcon?.Dispose();

@@ -6,6 +6,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Navigation;
+using PunchThrough.Models;
 using PunchThrough.Services;
 using File = System.IO.File;
 
@@ -13,8 +14,7 @@ namespace PunchThrough.Views;
 
 public partial class SetupWindow : Window
 {
-    public bool SetupCompleted { get; private set; }
-
+    private bool _setupCompleted;
     private readonly TextBlock[] _stepIcons;
     private double _progressBarMaxWidth;
 
@@ -22,12 +22,12 @@ public partial class SetupWindow : Window
     {
         InitializeComponent();
         _stepIcons = new[] { Step1Icon, Step2Icon, Step3Icon, Step4Icon };
-        Loaded += async (_, _) =>
-        {
-            _progressBarMaxWidth = ProgressFill.Parent is Border parent ? parent.ActualWidth : 400;
-            await RunSetup();
-        };
     }
+
+    private ProxyMode SelectedMode =>
+        RbDiscord.IsChecked == true ? ProxyMode.DiscordOnly :
+        RbCustom.IsChecked == true ? ProxyMode.Custom :
+        ProxyMode.Full;
 
     private void SetStep(int step, string icon)
     {
@@ -36,9 +36,7 @@ public partial class SetupWindow : Window
             _stepIcons[step].Text = icon;
             _stepIcons[step].Foreground = icon == "\u2714"
                 ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4C, 0xAF, 0x50))
-                : icon == "\u2716"
-                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red)
-                    : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4C, 0xAF, 0x50));
+                : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4C, 0xAF, 0x50));
         });
     }
 
@@ -46,12 +44,34 @@ public partial class SetupWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            ProgressFill.Width = _progressBarMaxWidth * value / 100.0;
+            if (_progressBarMaxWidth <= 0)
+                _progressBarMaxWidth = ProgressFill.Parent is Border parent ? parent.ActualWidth : 400;
+            ProgressFill.Width = Math.Max(0, _progressBarMaxWidth * value / 100.0);
         });
     }
 
-    private async Task RunSetup()
+    private async void OnActionClick(object sender, RoutedEventArgs e)
     {
+        if (_setupCompleted)
+        {
+            // Launch
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = InstallService.InstalledExePath,
+                UseShellExecute = true
+            });
+            Application.Current.Shutdown();
+            return;
+        }
+
+        // Start installation
+        var mode = SelectedMode;
+        BtnAction.IsEnabled = false;
+        ModePanel.Visibility = Visibility.Collapsed;
+        StepsPanel.Visibility = Visibility.Visible;
+        ProgressPanel.Visibility = Visibility.Visible;
+        TxtSubtitle.Text = "Installing...";
+
         try
         {
             var installDir = InstallService.InstallDirectory;
@@ -60,7 +80,7 @@ public partial class SetupWindow : Window
             // Step 1: Copy exe
             SetStep(0, "\u25B8");
             SetProgress(10);
-            await Task.Delay(300);
+            await Task.Delay(200);
 
             Directory.CreateDirectory(installDir);
             var currentExe = Environment.ProcessPath!;
@@ -69,63 +89,46 @@ public partial class SetupWindow : Window
             SetStep(0, "\u2714");
             SetProgress(25);
 
-            // Step 2: Download SpoofDPI
+            // Step 2: Extract zapret engine
             SetStep(1, "\u25B8");
-
-            if (!SpoofDPIManager.IsInstalled())
-            {
-                var progress = new Progress<int>(p =>
-                    SetProgress(25 + (int)(p * 0.35)));
-
-                var (ok, msg) = await SpoofDPIManager.DownloadAsync(progress);
-                if (!ok)
-                {
-                    SetStep(1, "\u2716");
-                    TxtSubtitle.Text = $"Download failed: {msg}";
-                    TxtSubtitle.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
-                    BtnClose.Content = "Close";
-                    BtnClose.Visibility = Visibility.Visible;
-                    return;
-                }
-            }
-
+            await Task.Run(() => ZapretService.EnsureExtracted());
             SetStep(1, "\u2714");
-            SetProgress(60);
+            SetProgress(50);
 
             // Step 3: Desktop shortcut
             SetStep(2, "\u25B8");
             await Task.Delay(200);
-
             CreateDesktopShortcut(installedExe);
-
             SetStep(2, "\u2714");
-            SetProgress(80);
+            SetProgress(75);
 
-            // Step 4: Startup + auto-connect
+            // Step 4: Startup + settings
             SetStep(3, "\u25B8");
             await Task.Delay(200);
 
             StartupService.SetEnabled(true, installedExe);
 
-            var settings = Models.Settings.Load();
+            var settings = Settings.Load();
             settings.LaunchAtStartup = true;
             settings.AutoConnect = true;
+            settings.ProxyMode = mode;
             settings.Save();
 
             SetStep(3, "\u2714");
             SetProgress(100);
 
             // Done
-            TxtSubtitle.Text = "Ready to go!";
-            BtnClose.Visibility = Visibility.Visible;
-            SetupCompleted = true;
+            TxtSubtitle.Text = "Ready!";
+            BtnAction.Content = "Launch PunchThrough";
+            BtnAction.IsEnabled = true;
+            _setupCompleted = true;
         }
         catch (Exception ex)
         {
             TxtSubtitle.Text = $"Error: {ex.Message}";
             TxtSubtitle.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
-            BtnClose.Content = "Close";
-            BtnClose.Visibility = Visibility.Visible;
+            BtnAction.Content = "Close";
+            BtnAction.IsEnabled = true;
         }
     }
 
@@ -145,20 +148,6 @@ public partial class SetupWindow : Window
             file.Save(shortcutPath, false);
         }
         catch { }
-    }
-
-    private void OnCloseClick(object sender, RoutedEventArgs e)
-    {
-        if (SetupCompleted)
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = InstallService.InstalledExePath,
-                UseShellExecute = true
-            });
-        }
-
-        Application.Current.Shutdown();
     }
 
     private void OnLinkClick(object sender, RequestNavigateEventArgs e)
