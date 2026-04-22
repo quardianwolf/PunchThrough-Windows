@@ -108,8 +108,8 @@ public class ZapretService : IDisposable
 
     private string BuildArguments(ProxyMode mode, string[] customDomains)
     {
-        // Base: blockcheck found this works for Turkish ISPs
-        var args = "--wf-tcp=443 --filter-tcp=443 --dpi-desync=fake --dpi-desync-ttl=4";
+        // Base: split strategy works on more Turkish ISPs (TT, Vodafone, Turkcell)
+        var args = "--wf-tcp=443 --filter-tcp=443 --dpi-desync=split --dpi-desync-split-pos=1 --dpi-desync-fooling=md5sig";
 
         if (mode != ProxyMode.Full)
         {
