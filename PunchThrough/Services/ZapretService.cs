@@ -54,12 +54,12 @@ public class ZapretService : IDisposable
     /// <summary>
     /// Start zapret with the appropriate mode.
     /// </summary>
-    public void Start(ProxyMode mode, string[] customDomains)
+    public void Start(ProxyMode mode, string[] customDomains, string? customStrategy = null)
     {
         Stop();
         EnsureExtracted();
 
-        var args = BuildArguments(mode, customDomains);
+        var args = BuildArguments(mode, customDomains, customStrategy);
         Debug.WriteLine($"[Zapret] Starting: winws.exe {args}");
 
         _process = new Process
@@ -69,17 +69,15 @@ public class ZapretService : IDisposable
                 FileName = WinwsPath,
                 Arguments = args,
                 WorkingDirectory = BinDirectory,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
+                // UseShellExecute=true with hidden window mimics PowerShell's Start-Process,
+                // which gives winws its own console — required for cygwin-based winws to work
+                UseShellExecute = true,
+                WindowStyle = ProcessWindowStyle.Hidden
             },
             EnableRaisingEvents = true
         };
 
         _process.Start();
-        _process.BeginOutputReadLine();
-        _process.BeginErrorReadLine();
 
         Debug.WriteLine($"[Zapret] Started PID: {_process.Id}");
     }
@@ -106,10 +104,14 @@ public class ZapretService : IDisposable
 
     public bool IsRunning => _process is { HasExited: false };
 
-    private string BuildArguments(ProxyMode mode, string[] customDomains)
+    private string BuildArguments(ProxyMode mode, string[] customDomains, string? customStrategy)
     {
-        // Base: split strategy works on more Turkish ISPs (TT, Vodafone, Turkcell)
-        var args = "--wf-tcp=443 --filter-tcp=443 --dpi-desync=split --dpi-desync-split-pos=1 --dpi-desync-fooling=md5sig";
+        // Use detected/custom strategy if available, otherwise default
+        var strategy = !string.IsNullOrWhiteSpace(customStrategy)
+            ? customStrategy
+            : "--dpi-desync=split --dpi-desync-split-pos=1 --dpi-desync-fooling=md5sig";
+
+        var args = $"--wf-tcp=443 --filter-tcp=443 {strategy}";
 
         if (mode != ProxyMode.Full)
         {

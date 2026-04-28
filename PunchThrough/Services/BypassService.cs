@@ -41,7 +41,7 @@ public class BypassService
 
             // Step 2: Start zapret for TLS bypass
             await Task.Run(() =>
-                _zapret.Start(appState.ProxyMode, appState.CustomProxyDomains.ToArray()));
+                _zapret.Start(appState.ProxyMode, appState.CustomProxyDomains.ToArray(), appState.ZapretStrategy));
 
             appState.ConnectionStatus = ConnectionStatus.Connected;
             appState.AddLog($"DPI bypass active — {appState.ProxyMode.GetDisplayName()}");

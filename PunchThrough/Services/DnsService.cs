@@ -56,10 +56,17 @@ public static class DnsService
             var scriptPath = Path.Combine(Path.GetTempPath(), "pt_dns_enable.ps1");
             File.WriteAllText(scriptPath,
                 $"$iface = '{_activeInterface.Replace("'", "''")}'\n" +
+                // IPv4 DNS to Cloudflare
                 "netsh interface ip set dns name=\"$iface\" static 1.1.1.1 primary\n" +
                 "netsh interface ip add dns name=\"$iface\" 1.0.0.1 index=2\n" +
+                // IPv6 DNS to Cloudflare (otherwise IPv6 queries get poisoned by ISP)
+                "netsh interface ipv6 set dns name=\"$iface\" static 2606:4700:4700::1111 primary\n" +
+                "netsh interface ipv6 add dns name=\"$iface\" 2606:4700:4700::1001 index=2\n" +
+                // Enable DoH AutoUpgrade for all four (IPv4 + IPv6)
                 "Set-DnsClientDohServerAddress -ServerAddress 1.1.1.1 -DohTemplate https://cloudflare-dns.com/dns-query -AllowFallbackToUdp $false -AutoUpgrade $true -ErrorAction SilentlyContinue\n" +
                 "Set-DnsClientDohServerAddress -ServerAddress 1.0.0.1 -DohTemplate https://cloudflare-dns.com/dns-query -AllowFallbackToUdp $false -AutoUpgrade $true -ErrorAction SilentlyContinue\n" +
+                "Set-DnsClientDohServerAddress -ServerAddress 2606:4700:4700::1111 -DohTemplate https://cloudflare-dns.com/dns-query -AllowFallbackToUdp $false -AutoUpgrade $true -ErrorAction SilentlyContinue\n" +
+                "Set-DnsClientDohServerAddress -ServerAddress 2606:4700:4700::1001 -DohTemplate https://cloudflare-dns.com/dns-query -AllowFallbackToUdp $false -AutoUpgrade $true -ErrorAction SilentlyContinue\n" +
                 "ipconfig /flushdns | Out-Null\n");
 
             RunElevatedScript(scriptPath);
@@ -86,7 +93,10 @@ public static class DnsService
             File.WriteAllText(scriptPath,
                 "Set-DnsClientDohServerAddress -ServerAddress 1.1.1.1 -DohTemplate https://cloudflare-dns.com/dns-query -AllowFallbackToUdp $false -AutoUpgrade $false -ErrorAction SilentlyContinue\n" +
                 "Set-DnsClientDohServerAddress -ServerAddress 1.0.0.1 -DohTemplate https://cloudflare-dns.com/dns-query -AllowFallbackToUdp $false -AutoUpgrade $false -ErrorAction SilentlyContinue\n" +
+                "Set-DnsClientDohServerAddress -ServerAddress 2606:4700:4700::1111 -DohTemplate https://cloudflare-dns.com/dns-query -AllowFallbackToUdp $false -AutoUpgrade $false -ErrorAction SilentlyContinue\n" +
+                "Set-DnsClientDohServerAddress -ServerAddress 2606:4700:4700::1001 -DohTemplate https://cloudflare-dns.com/dns-query -AllowFallbackToUdp $false -AutoUpgrade $false -ErrorAction SilentlyContinue\n" +
                 $"{restoreCmd}\n" +
+                $"netsh interface ipv6 set dns name=\"{_activeInterface}\" dhcp\n" +
                 "ipconfig /flushdns | Out-Null\n");
 
             RunElevatedScript(scriptPath);

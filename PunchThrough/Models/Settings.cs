@@ -14,6 +14,7 @@ public class Settings
     public bool AutoConnect { get; set; }
     public ProxyMode ProxyMode { get; set; } = ProxyMode.Full;
     public List<string> CustomProxyDomains { get; set; } = new();
+    public string ZapretStrategy { get; set; } = ""; // empty = use default
     public AppLanguage AppLanguage { get; set; } = AppLanguage.System;
 
     private static string SettingsDir =>

@@ -47,6 +47,9 @@ public static class Strings
             ["ProxyModeDiscordDesc"] = "Only Discord is unblocked. Other apps unaffected.",
             ["ProxyModeCustomDesc"] = "Choose which sites to unblock.",
 
+            ["BypassStrategy"] = "Bypass Strategy",
+            ["AutoDetectStrategy"] = "Auto-detect best strategy",
+
             ["ShowSettings"] = "Settings",
             ["ResetAndQuit"] = "Reset && Quit",
             ["Quit"] = "Quit",
@@ -89,6 +92,9 @@ public static class Strings
             ["ProxyModeFullDesc"] = "Tum HTTPS trafigi korunur. Her seyi engelsiz acar.",
             ["ProxyModeDiscordDesc"] = "Sadece Discord engeli kaldirilir. Diger uygulamalar etkilenmez.",
             ["ProxyModeCustomDesc"] = "Hangi sitelerin engelini kaldirmak istedigini sec.",
+
+            ["BypassStrategy"] = "Bypass Stratejisi",
+            ["AutoDetectStrategy"] = "En iyi stratejiyi otomatik bul",
 
             ["ShowSettings"] = "Ayarlar",
             ["ResetAndQuit"] = "Sifirla && Cik",

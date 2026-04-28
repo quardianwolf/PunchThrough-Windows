@@ -21,7 +21,7 @@ public partial class SetupWindow : Window
     public SetupWindow()
     {
         InitializeComponent();
-        _stepIcons = new[] { Step1Icon, Step2Icon, Step3Icon, Step4Icon };
+        _stepIcons = new[] { Step1Icon, Step2Icon, Step3Icon, Step4Icon, Step5Icon };
     }
 
     private ProxyMode SelectedMode =>
@@ -34,9 +34,8 @@ public partial class SetupWindow : Window
         Dispatcher.Invoke(() =>
         {
             _stepIcons[step].Text = icon;
-            _stepIcons[step].Foreground = icon == "\u2714"
-                ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4C, 0xAF, 0x50))
-                : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4C, 0xAF, 0x50));
+            _stepIcons[step].Foreground = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0x4C, 0xAF, 0x50));
         });
     }
 
@@ -54,7 +53,6 @@ public partial class SetupWindow : Window
     {
         if (_setupCompleted)
         {
-            // Launch
             Process.Start(new ProcessStartInfo
             {
                 FileName = InstallService.InstalledExePath,
@@ -64,7 +62,6 @@ public partial class SetupWindow : Window
             return;
         }
 
-        // Start installation
         var mode = SelectedMode;
         BtnAction.IsEnabled = false;
         ModePanel.Visibility = Visibility.Collapsed;
@@ -78,32 +75,52 @@ public partial class SetupWindow : Window
             var installedExe = InstallService.InstalledExePath;
 
             // Step 1: Copy exe
-            SetStep(0, "\u25B8");
-            SetProgress(10);
+            SetStep(0, "▸");
+            SetProgress(5);
             await Task.Delay(200);
 
             Directory.CreateDirectory(installDir);
             var currentExe = Environment.ProcessPath!;
             File.Copy(currentExe, installedExe, overwrite: true);
 
-            SetStep(0, "\u2714");
-            SetProgress(25);
+            SetStep(0, "✔");
+            SetProgress(15);
 
             // Step 2: Extract zapret engine
-            SetStep(1, "\u25B8");
+            SetStep(1, "▸");
             await Task.Run(() => ZapretService.EnsureExtracted());
-            SetStep(1, "\u2714");
-            SetProgress(50);
+            SetStep(1, "✔");
+            SetProgress(30);
 
             // Step 3: Desktop shortcut
-            SetStep(2, "\u25B8");
+            SetStep(2, "▸");
             await Task.Delay(200);
             CreateDesktopShortcut(installedExe);
-            SetStep(2, "\u2714");
-            SetProgress(75);
+            SetStep(2, "✔");
+            SetProgress(40);
 
-            // Step 4: Startup + settings
-            SetStep(3, "\u25B8");
+            // Step 4: Auto-detect best zapret strategy for this network
+            SetStep(3, "▸");
+            var detectProgress = new Progress<(int current, int total, string strategy)>(p =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    Step4Text.Text = $"Testing {p.current}/{p.total}: {p.strategy}";
+                    SetProgress(40 + (int)(p.current * 45.0 / p.total));
+                });
+            });
+            var (detectedArgs, detectedName) = await StrategyDetector.DetectAsync(detectProgress);
+            Dispatcher.Invoke(() =>
+            {
+                Step4Text.Text = detectedName != null
+                    ? $"Strategy found: {detectedName}"
+                    : "Using default strategy";
+            });
+            SetStep(3, "✔");
+            SetProgress(85);
+
+            // Step 5: Startup + settings
+            SetStep(4, "▸");
             await Task.Delay(200);
 
             StartupService.SetEnabled(true, installedExe);
@@ -112,12 +129,12 @@ public partial class SetupWindow : Window
             settings.LaunchAtStartup = true;
             settings.AutoConnect = true;
             settings.ProxyMode = mode;
+            settings.ZapretStrategy = detectedArgs ?? "";
             settings.Save();
 
-            SetStep(3, "\u2714");
+            SetStep(4, "✔");
             SetProgress(100);
 
-            // Done
             TxtSubtitle.Text = "Ready!";
             BtnAction.Content = "Launch PunchThrough";
             BtnAction.IsEnabled = true;

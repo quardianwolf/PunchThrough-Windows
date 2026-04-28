@@ -194,8 +194,24 @@
                                 <TextBox x:Name="TxtCustomDns" Width="220" HorizontalAlignment="Left"
                                          Padding="6,4" TextChanged="OnCustomDnsChanged"/>
                             </StackPanel>
-                            <CheckBox x:Name="ChkDoH" Margin="0,0,0,8"
+                            <CheckBox x:Name="ChkDoH" Margin="0,0,0,16"
                                       Checked="OnDoHChanged" Unchecked="OnDoHChanged"/>
+
+                            <!-- Strategy -->
+                            <TextBlock x:Name="LblStrategy" Text="Bypass Strategy" FontWeight="SemiBold" FontSize="13"
+                                       Foreground="#333" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="TxtCurrentStrategy" FontSize="11" Foreground="#999"
+                                       Margin="0,0,0,8" TextWrapping="Wrap"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="BtnAutoDetect" Content="Auto-detect best strategy"
+                                        Padding="14,6" Margin="0,0,8,0"
+                                        FontSize="12" Cursor="Hand" Click="OnAutoDetectClick"/>
+                                <Button x:Name="BtnDiagnostics" Content="Run diagnostics"
+                                        Padding="14,6" FontSize="12" Cursor="Hand"
+                                        Click="OnDiagnosticsClick"/>
+                            </StackPanel>
+                            <TextBlock x:Name="TxtAutoDetectStatus" FontSize="11" Foreground="#999"
+                                       Margin="0,6,0,0"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>

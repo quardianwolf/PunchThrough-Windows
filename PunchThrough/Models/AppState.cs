@@ -17,6 +17,7 @@ public class AppState : INotifyPropertyChanged
     private bool _autoConnect;
     private ProxyMode _proxyMode = ProxyMode.Full;
     private List<string> _customProxyDomains = new();
+    private string _zapretStrategy = "";
     private AppLanguage _appLanguage = AppLanguage.System;
 
     public ConnectionStatus ConnectionStatus
@@ -83,6 +84,12 @@ public class AppState : INotifyPropertyChanged
     {
         get => _customProxyDomains;
         set { _customProxyDomains = value; OnPropertyChanged(); }
+    }
+
+    public string ZapretStrategy
+    {
+        get => _zapretStrategy;
+        set => SetField(ref _zapretStrategy, value);
     }
 
     public AppLanguage AppLanguage
@@ -159,6 +166,7 @@ public class AppState : INotifyPropertyChanged
         _autoConnect = settings.AutoConnect;
         _proxyMode = settings.ProxyMode;
         _customProxyDomains = settings.CustomProxyDomains;
+        _zapretStrategy = settings.ZapretStrategy;
         _appLanguage = settings.AppLanguage;
     }
 
@@ -175,6 +183,7 @@ public class AppState : INotifyPropertyChanged
             AutoConnect = AutoConnect,
             ProxyMode = ProxyMode,
             CustomProxyDomains = CustomProxyDomains,
+            ZapretStrategy = ZapretStrategy,
             AppLanguage = AppLanguage
         };
         settings.Save();

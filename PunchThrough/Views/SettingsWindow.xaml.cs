@@ -59,9 +59,75 @@ public partial class SettingsWindow : Window
         LogList.ItemsSource = _appState.Logs;
         UpdateLogView();
 
+        // Strategy
+        UpdateCurrentStrategy();
+
         // Localize all text
         ApplyStrings();
         UpdateConnectionStatus();
+    }
+
+    private void UpdateCurrentStrategy()
+    {
+        TxtCurrentStrategy.Text = string.IsNullOrEmpty(_appState.ZapretStrategy)
+            ? "Default (split + md5sig)"
+            : _appState.ZapretStrategy;
+    }
+
+    private async void OnDiagnosticsClick(object sender, RoutedEventArgs e)
+    {
+        BtnDiagnostics.IsEnabled = false;
+        TxtAutoDetectStatus.Text = "Running diagnostics...";
+        try
+        {
+            var path = await DiagnosticsService.RunDiagnosticsAsync();
+            TxtAutoDetectStatus.Text = $"Saved: {System.IO.Path.GetFileName(path)}";
+            _appState.AddLog($"Diagnostics saved to desktop: {System.IO.Path.GetFileName(path)}");
+        }
+        catch (Exception ex)
+        {
+            TxtAutoDetectStatus.Text = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            BtnDiagnostics.IsEnabled = true;
+        }
+    }
+
+    private async void OnAutoDetectClick(object sender, RoutedEventArgs e)
+    {
+        BtnAutoDetect.IsEnabled = false;
+        TxtAutoDetectStatus.Text = "Detecting...";
+
+        var wasConnected = _appState.ConnectionStatus.State == ConnectionState.Connected;
+        if (wasConnected)
+            await BypassService.Instance.DisconnectAsync(_appState);
+
+        var progress = new Progress<(int current, int total, string strategy)>(p =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                TxtAutoDetectStatus.Text = $"Testing {p.current}/{p.total}: {p.strategy}";
+            });
+        });
+
+        var (args, name) = await StrategyDetector.DetectAsync(progress);
+        if (args != null)
+        {
+            _appState.ZapretStrategy = args;
+            _appState.SaveSettings();
+            TxtAutoDetectStatus.Text = $"Found: {name}";
+            UpdateCurrentStrategy();
+        }
+        else
+        {
+            TxtAutoDetectStatus.Text = "No working strategy found";
+        }
+
+        if (wasConnected)
+            await BypassService.Instance.ConnectAsync(_appState);
+
+        BtnAutoDetect.IsEnabled = true;
     }
 
     private void ApplyStrings()
@@ -84,6 +150,8 @@ public partial class SettingsWindow : Window
         // Bypass tab
         LblBypassMode.Text = Strings.Get("Bypass") + " Mode";
         ChkDoH.Content = Strings.Get("UseDoH");
+        LblStrategy.Text = Strings.Get("BypassStrategy");
+        BtnAutoDetect.Content = Strings.Get("AutoDetectStrategy");
 
         // Logs tab
         TxtNoLogs.Text = Strings.Get("NoLogs");
