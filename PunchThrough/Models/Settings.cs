@@ -7,15 +7,22 @@ public class Settings
 {
     public DnsServer DnsServer { get; set; } = DnsServer.Cloudflare;
     public string CustomDns { get; set; } = "";
-    public int SpoofDpiPort { get; set; } = 8080;
     public bool EnableDoH { get; set; } = true;
-    public bool EnableSystemProxy { get; set; } = true;
+    public bool EnableQuic { get; set; }
     public bool LaunchAtStartup { get; set; }
     public bool AutoConnect { get; set; }
     public ProxyMode ProxyMode { get; set; } = ProxyMode.Full;
     public List<string> CustomProxyDomains { get; set; } = new();
     public string ZapretStrategy { get; set; } = ""; // empty = use default
     public AppLanguage AppLanguage { get; set; } = AppLanguage.System;
+
+    // SSH tunnel
+    public TunnelMode TunnelMode { get; set; } = TunnelMode.Off;
+    public string TunnelHost { get; set; } = "";
+    public int TunnelPort { get; set; } = 22;
+    public string TunnelUser { get; set; } = "";
+    public string TunnelKeyPath { get; set; } = "";
+    public List<string> TunnelDomains { get; set; } = new();
 
     private static string SettingsDir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PunchThrough");
@@ -29,7 +36,15 @@ public class Settings
             if (File.Exists(SettingsPath))
             {
                 var json = File.ReadAllText(SettingsPath);
-                return JsonSerializer.Deserialize<Settings>(json) ?? new Settings();
+                var settings = JsonSerializer.Deserialize<Settings>(json) ?? new Settings();
+                settings.CustomProxyDomains ??= new();
+                settings.TunnelDomains ??= new();
+                settings.CustomDns ??= "";
+                settings.ZapretStrategy ??= "";
+                settings.TunnelHost ??= "";
+                settings.TunnelUser ??= "";
+                settings.TunnelKeyPath ??= "";
+                return settings;
             }
         }
         catch

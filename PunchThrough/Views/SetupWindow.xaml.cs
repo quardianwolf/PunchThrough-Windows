@@ -15,6 +15,7 @@ namespace PunchThrough.Views;
 public partial class SetupWindow : Window
 {
     private bool _setupCompleted;
+    private bool _setupFailed;
     private readonly TextBlock[] _stepIcons;
     private double _progressBarMaxWidth;
 
@@ -22,6 +23,26 @@ public partial class SetupWindow : Window
     {
         InitializeComponent();
         _stepIcons = new[] { Step1Icon, Step2Icon, Step3Icon, Step4Icon, Step5Icon };
+        ApplyStrings();
+    }
+
+    private void ApplyStrings()
+    {
+        TxtTagline.Text = Strings.Get("SetupTagline");
+        TxtSubtitle.Text = Strings.Get("SetupChoose");
+        LblMode.Text = Strings.Get("BypassMode");
+        RbFull.Content = Strings.Get("ProxyModeFull");
+        TxtFullDesc.Text = Strings.Get("ProxyModeFullDesc");
+        RbDiscord.Content = Strings.Get("ProxyModeDiscord");
+        TxtDiscordDesc.Text = Strings.Get("ProxyModeDiscordDesc");
+        RbCustom.Content = Strings.Get("ProxyModeCustom");
+        TxtCustomDesc.Text = Strings.Get("SetupModeCustomDesc");
+        Step1Text.Text = Strings.Get("SetupStep1");
+        Step2Text.Text = Strings.Get("SetupStep2");
+        Step3Text.Text = Strings.Get("SetupStep3");
+        Step4Text.Text = Strings.Get("SetupStep4");
+        Step5Text.Text = Strings.Get("SetupStep5");
+        BtnAction.Content = Strings.Get("SetupInstall");
     }
 
     private ProxyMode SelectedMode =>
@@ -51,6 +72,12 @@ public partial class SetupWindow : Window
 
     private async void OnActionClick(object sender, RoutedEventArgs e)
     {
+        if (_setupFailed)
+        {
+            Application.Current.Shutdown();
+            return;
+        }
+
         if (_setupCompleted)
         {
             Process.Start(new ProcessStartInfo
@@ -67,7 +94,7 @@ public partial class SetupWindow : Window
         ModePanel.Visibility = Visibility.Collapsed;
         StepsPanel.Visibility = Visibility.Visible;
         ProgressPanel.Visibility = Visibility.Visible;
-        TxtSubtitle.Text = "Installing...";
+        TxtSubtitle.Text = Strings.Get("SetupInstalling");
 
         try
         {
@@ -78,6 +105,9 @@ public partial class SetupWindow : Window
             SetStep(0, "▸");
             SetProgress(5);
             await Task.Delay(200);
+
+            // An update over a running copy: stop the old engine so its files can be replaced
+            await Task.Run(ZapretService.KillAll);
 
             Directory.CreateDirectory(installDir);
             var currentExe = Environment.ProcessPath!;
@@ -105,16 +135,18 @@ public partial class SetupWindow : Window
             {
                 Dispatcher.Invoke(() =>
                 {
-                    Step4Text.Text = $"Testing {p.current}/{p.total}: {p.strategy}";
+                    Step4Text.Text = Strings.Format("DetectTesting", p.current, p.total, p.strategy);
                     SetProgress(40 + (int)(p.current * 45.0 / p.total));
                 });
             });
-            var (detectedArgs, detectedName) = await StrategyDetector.DetectAsync(detectProgress);
+            var existing = Settings.Load();
+            var testHosts = StrategyDetector.TestHostsFor(mode, existing.CustomProxyDomains);
+            var (detectedArgs, detectedName) = await StrategyDetector.DetectAsync(testHosts, detectProgress);
             Dispatcher.Invoke(() =>
             {
                 Step4Text.Text = detectedName != null
-                    ? $"Strategy found: {detectedName}"
-                    : "Using default strategy";
+                    ? Strings.Format("SetupDetectFound", detectedName)
+                    : Strings.Get("SetupDetectDefault");
             });
             SetStep(3, "✔");
             SetProgress(85);
@@ -135,8 +167,8 @@ public partial class SetupWindow : Window
             SetStep(4, "✔");
             SetProgress(100);
 
-            TxtSubtitle.Text = "Ready!";
-            BtnAction.Content = "Launch PunchThrough";
+            TxtSubtitle.Text = Strings.Get("SetupReady");
+            BtnAction.Content = Strings.Get("SetupLaunch");
             BtnAction.IsEnabled = true;
             _setupCompleted = true;
         }
@@ -144,8 +176,9 @@ public partial class SetupWindow : Window
         {
             TxtSubtitle.Text = $"Error: {ex.Message}";
             TxtSubtitle.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
-            BtnAction.Content = "Close";
+            BtnAction.Content = Strings.Get("SetupClose");
             BtnAction.IsEnabled = true;
+            _setupFailed = true;
         }
     }
 
@@ -153,8 +186,7 @@ public partial class SetupWindow : Window
     {
         try
         {
-            var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-            var shortcutPath = Path.Combine(desktopPath, "PunchThrough.lnk");
+            var shortcutPath = InstallService.DesktopShortcutPath;
 
             var link = (IShellLink)new ShellLink();
             link.SetPath(targetExe);

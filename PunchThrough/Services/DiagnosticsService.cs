@@ -4,7 +4,6 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
-using System.Text.Json;
 
 namespace PunchThrough.Services;
 
@@ -13,8 +12,6 @@ namespace PunchThrough.Services;
 /// </summary>
 public static class DiagnosticsService
 {
-    private static readonly HttpClient DohClient = new() { Timeout = TimeSpan.FromSeconds(5) };
-
     public static async Task<string> RunDiagnosticsAsync()
     {
         var log = new StringBuilder();
@@ -46,9 +43,7 @@ public static class DiagnosticsService
         log.AppendLine("--- Hostlist ---");
         try
         {
-            var hostlistPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "PunchThrough", "zapret", "hostlist.txt");
+            var hostlistPath = ZapretService.HostlistPath;
             if (File.Exists(hostlistPath))
                 log.AppendLine(File.ReadAllText(hostlistPath));
             else
@@ -65,16 +60,22 @@ public static class DiagnosticsService
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "PunchThrough", "settings.json");
             if (File.Exists(settingsPath))
-                log.AppendLine(File.ReadAllText(settingsPath));
+            {
+                // This file gets shared for troubleshooting — keep the user's server details out of it
+                var json = File.ReadAllText(settingsPath);
+                json = System.Text.RegularExpressions.Regex.Replace(
+                    json, "(\"Tunnel(?:Host|User|KeyPath)\"\\s*:\\s*)\"[^\"]+\"", "$1\"(hidden)\"");
+                log.AppendLine(json);
+            }
         }
         catch (Exception ex) { log.AppendLine($"Error: {ex.Message}"); }
         log.AppendLine();
 
         // DoH-resolved IP
         log.AppendLine("--- DoH Resolution Test ---");
-        var dohIp = await ResolveViaDoH("discord.com");
+        var dohIp = await DohResolver.ResolveAsync("discord.com");
         log.AppendLine($"discord.com via DoH: {dohIp ?? "FAILED"}");
-        var updatesIp = await ResolveViaDoH("updates.discord.com");
+        var updatesIp = await DohResolver.ResolveAsync("updates.discord.com");
         log.AppendLine($"updates.discord.com via DoH: {updatesIp ?? "FAILED"}");
         log.AppendLine();
 
@@ -90,6 +91,13 @@ public static class DiagnosticsService
         log.AppendLine("--- System DNS TLS Tests ---");
         log.AppendLine($"discord.com (system DNS): {await TestEndpointSystemDns("discord.com")}");
         log.AppendLine($"updates.discord.com (system DNS): {await TestEndpointSystemDns("updates.discord.com")}");
+        log.AppendLine();
+
+        // SSH tunnel
+        log.AppendLine("--- Tunnel ---");
+        log.AppendLine($"ssh client: {TunnelService.FindSsh() ?? "(not installed)"}");
+        log.AppendLine($"Proxy script (AutoConfigURL): {SystemProxy.CurrentPacUrl ?? "(none)"}");
+        log.AppendLine(RunPs("Get-Process ssh -ErrorAction SilentlyContinue | Format-List Id, StartTime"));
         log.AppendLine();
 
         // Save log
@@ -121,26 +129,6 @@ public static class DiagnosticsService
             return string.IsNullOrWhiteSpace(error) ? output.Trim() : $"{output.Trim()}\n[stderr]: {error.Trim()}";
         }
         catch (Exception ex) { return $"(error: {ex.Message})"; }
-    }
-
-    private static async Task<string?> ResolveViaDoH(string host)
-    {
-        try
-        {
-            var url = $"https://cloudflare-dns.com/dns-query?name={host}&type=A";
-            var req = new HttpRequestMessage(HttpMethod.Get, url);
-            req.Headers.Add("Accept", "application/dns-json");
-            var resp = await DohClient.SendAsync(req);
-            if (!resp.IsSuccessStatusCode) return null;
-            var json = await resp.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("Answer", out var answers)) return null;
-            foreach (var a in answers.EnumerateArray())
-                if (a.GetProperty("type").GetInt32() == 1)
-                    return a.GetProperty("data").GetString();
-            return null;
-        }
-        catch (Exception ex) { return $"error: {ex.Message}"; }
     }
 
     private static async Task<string> TestEndpoint(string host, string ip)

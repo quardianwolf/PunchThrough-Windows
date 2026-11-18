@@ -28,6 +28,10 @@ public partial class App : Application
             return;
         }
 
+        // A previous run that was killed or crashed may have left our DNS / proxy script behind
+        var recovered = false;
+        try { recovered = DnsService.RecoverIfNeeded() | SystemProxy.RecoverIfNeeded(); } catch { }
+
         // If not running from installed location, show setup
         if (!InstallService.IsInstalled())
         {
@@ -48,6 +52,12 @@ public partial class App : Application
         _trayIcon = new TrayIcon(_appState);
         _trayIcon.Show();
 
+        if (recovered)
+            _appState.AddLog(Strings.Get("LogRecovered"), LogLevel.Warning);
+
+        // Whatever ends the process, the user's network settings go back first
+        DispatcherUnhandledException += (_, _) => BypassService.Instance.ShutdownSync();
+
         if (_appState.AutoConnect)
         {
             await Task.Delay(3000); // longer delay for slow machines at boot
@@ -55,13 +65,18 @@ public partial class App : Application
         }
     }
 
+    /// <summary>Windows is logging off or shutting down — OnExit is not guaranteed to run.</summary>
+    protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+    {
+        if (_appState != null)
+            BypassService.Instance.ShutdownSync();
+        base.OnSessionEnding(e);
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         if (_appState != null)
-        {
-            try { BypassService.Instance.DisconnectAsync(_appState).Wait(3000); } catch { }
-            DnsService.Cleanup(); // Safety net
-        }
+            BypassService.Instance.ShutdownSync();
 
         _trayIcon?.Dispose();
         if (_ownsMutex)

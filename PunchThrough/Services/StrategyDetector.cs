@@ -3,7 +3,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
-using System.Text.Json;
+using PunchThrough.Models;
 
 namespace PunchThrough.Services;
 
@@ -12,19 +12,12 @@ namespace PunchThrough.Services;
 /// </summary>
 public static class StrategyDetector
 {
-    private static readonly HttpClient DohClient = new() { Timeout = TimeSpan.FromSeconds(5) };
-    private const string TestHost = "discord.com";
-    private const string TestUrl = "https://discord.com";
-
-    private static List<string> _resolvedIps = new();
+    public const string DefaultTestHost = "discord.com";
+    private const int MaxTargets = 6;
 
     /// <summary>
-    /// Strategies to try in order. First working one wins.
-    /// Each is a zapret command-line argument string.
-    /// </summary>
-    /// <summary>
-    /// Strategies sorted by effectiveness on Turkish ISPs (most likely first).
-    /// Each tested for ~3 seconds. Total max time = count * 3s.
+    /// Strategies sorted by effectiveness on Turkish ISPs (most likely first). First working one wins.
+    /// Each is a zapret command-line argument string, tested for ~3 seconds.
     /// </summary>
     public static readonly (string Name, string Args)[] Strategies =
     {
@@ -66,35 +59,56 @@ public static class StrategyDetector
     };
 
     /// <summary>
-    /// Returns the args of the first strategy that successfully connects to Discord.
+    /// The hosts a strategy has to unblock for the given mode: the user's own sites in
+    /// Custom mode (a strategy that opens Discord does not necessarily open them), Discord otherwise.
+    /// </summary>
+    public static string[] TestHostsFor(ProxyMode mode, IEnumerable<string> customDomains)
+    {
+        if (mode == ProxyMode.Custom)
+        {
+            var custom = customDomains.Select(DomainUtil.Normalize).Where(d => d != null).Take(2).ToArray();
+            if (custom.Length > 0) return custom!;
+        }
+        return new[] { DefaultTestHost };
+    }
+
+    /// <summary>
+    /// Returns the args of the first strategy that connects to every test target.
     /// Returns null if nothing works.
     /// </summary>
-    public static async Task<(string? args, string? name)> DetectAsync(IProgress<(int current, int total, string strategy)>? progress = null)
+    public static async Task<(string? args, string? name)> DetectAsync(
+        string[]? testHosts = null,
+        IProgress<(int current, int total, string strategy)>? progress = null)
     {
+        testHosts = testHosts is { Length: > 0 } ? testHosts : new[] { DefaultTestHost };
+
         // Make sure no winws is running
-        KillAllWinws();
+        ZapretService.KillAll();
         await Task.Delay(500);
 
         ZapretService.EnsureExtracted();
-        var winwsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "PunchThrough", "zapret", "winws.exe");
 
         var log = new System.Text.StringBuilder();
         log.AppendLine($"PunchThrough Strategy Detection — {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         log.AppendLine($"OS: {Environment.OSVersion.VersionString}");
-        log.AppendLine($"Tested URL: {TestUrl}");
+        log.AppendLine($"Test hosts: {string.Join(", ", testHosts)}");
         log.AppendLine($"Total strategies: {Strategies.Length}");
 
-        // Resolve all IPs via DoH (Cloudflare load-balances; some IPs may be blocked)
-        _resolvedIps = await ResolveAllIps(TestHost);
-        log.AppendLine($"Resolved {TestHost} via DoH: {(_resolvedIps.Count > 0 ? string.Join(", ", _resolvedIps) : "FAILED")}");
-        log.AppendLine($"Strategy must work on ALL {_resolvedIps.Count} IPs to be selected");
+        // Resolve via DoH (CDNs load-balance; some IPs may be blocked while others are not)
+        var targets = new List<(string host, string ip)>();
+        foreach (var host in testHosts)
+        {
+            var ips = await DohResolver.ResolveAllAsync(host);
+            log.AppendLine($"Resolved {host} via DoH: {(ips.Count > 0 ? string.Join(", ", ips) : "FAILED")}");
+            targets.AddRange(ips.Select(ip => (host, ip)));
+        }
+        targets = targets.Take(MaxTargets).ToList();
+        log.AppendLine($"Strategy must work on ALL {targets.Count} targets to be selected");
         log.AppendLine();
 
-        if (_resolvedIps.Count == 0)
+        if (targets.Count == 0)
         {
-            log.AppendLine("Cannot resolve test domain via DoH. Detection aborted.");
+            log.AppendLine("Cannot resolve any test domain via DoH. Detection aborted.");
             SaveLog(log.ToString(), success: false);
             return (null, null);
         }
@@ -107,7 +121,7 @@ public static class StrategyDetector
             Process? proc = null;
             try
             {
-                proc = StartZapret(winwsPath, strategyArgs);
+                proc = StartZapret(strategyArgs);
                 if (proc == null)
                 {
                     log.AppendLine($"[{i + 1}/{Strategies.Length}] {name} — FAILED TO START");
@@ -116,15 +130,10 @@ public static class StrategyDetector
 
                 await Task.Delay(800);
 
-                // Test against ALL resolved IPs — strategy must work on all
-                var results = new List<string>();
-                bool allSucceeded = true;
-                foreach (var ip in _resolvedIps)
-                {
-                    var (ok, err) = await TestConnectionWithError(ip);
-                    results.Add($"{ip}={(ok ? "OK" : "FAIL")}");
-                    if (!ok) allSucceeded = false;
-                }
+                // All targets at once — a strategy costs ~3s no matter how many targets there are
+                var outcomes = await Task.WhenAll(targets.Select(t => TestEndpoint(t.host, t.ip, 3)));
+                var allSucceeded = outcomes.All(o => o.ok);
+                var results = targets.Zip(outcomes, (t, o) => $"{t.host}@{t.ip}={(o.ok ? "OK" : "FAIL")}");
 
                 log.AppendLine($"[{i + 1}/{Strategies.Length}] {name} — {(allSucceeded ? "SUCCESS" : "PARTIAL/FAIL")} [{string.Join(", ", results)}]");
 
@@ -133,23 +142,21 @@ public static class StrategyDetector
                     log.AppendLine();
                     log.AppendLine($"WINNER: {name}");
                     log.AppendLine($"ARGS: {strategyArgs}");
-                    log.AppendLine();
-                    log.AppendLine("=== EXTENDED DIAGNOSTICS ===");
 
-                    // Test other Discord endpoints with this strategy
-                    foreach (var (host, label) in new[]
+                    if (testHosts.Contains(DefaultTestHost))
                     {
-                        ("discord.com", "discord.com (main)"),
-                        ("updates.discord.com", "updates.discord.com (updater)"),
-                        ("gateway.discord.gg", "gateway.discord.gg (websocket)"),
-                        ("cdn.discordapp.com", "cdn.discordapp.com (CDN)"),
-                    })
-                    {
-                        var (ok, err) = await TestEndpointWithError(host);
-                        log.AppendLine($"  {label}: {(ok ? "OK" : "FAIL")} {err}");
+                        log.AppendLine();
+                        log.AppendLine("=== EXTENDED DIAGNOSTICS ===");
+                        foreach (var host in new[] { "updates.discord.com", "gateway.discord.gg", "cdn.discordapp.com" })
+                        {
+                            var ip = await DohResolver.ResolveAsync(host);
+                            var (ok, detail) = ip == null
+                                ? (false, "(DoH resolution failed)")
+                                : await TestEndpoint(host, ip, 4);
+                            log.AppendLine($"  {host}: {(ok ? "OK" : "FAIL")} {detail}");
+                        }
                     }
 
-                    Stop(proc);
                     SaveLog(log.ToString(), success: true);
                     return (strategyArgs, name);
                 }
@@ -172,119 +179,38 @@ public static class StrategyDetector
         return (null, null);
     }
 
-    private static async Task<(bool success, string error)> TestConnectionWithError(string ip)
+    /// <summary>HTTPS request to <paramref name="host"/> pinned to one IP, bypassing system DNS.</summary>
+    private static async Task<(bool ok, string detail)> TestEndpoint(string host, string ip, int timeoutSeconds)
     {
         try
         {
-            var handler = new SocketsHttpHandler
+            using var handler = new SocketsHttpHandler
             {
                 ConnectCallback = async (ctx, ct) =>
                 {
                     var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-                    await socket.ConnectAsync(IPAddress.Parse(ip), 443, ct);
-                    return new NetworkStream(socket, ownsSocket: true);
+                    try
+                    {
+                        await socket.ConnectAsync(IPAddress.Parse(ip), 443, ct);
+                        return new NetworkStream(socket, ownsSocket: true);
+                    }
+                    catch
+                    {
+                        socket.Dispose();
+                        throw;
+                    }
                 }
             };
 
-            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(3) };
-            using var resp = await client.GetAsync(TestUrl, HttpCompletionOption.ResponseHeadersRead);
-            return ((int)resp.StatusCode < 500, "");
-        }
-        catch (Exception ex)
-        {
-            var msg = ex.InnerException?.Message ?? ex.Message;
-            return (false, $"({msg})");
-        }
-    }
-
-    private static async Task<(bool ok, string err)> TestEndpointWithError(string host)
-    {
-        try
-        {
-            var ip = await ResolveViaDoH(host);
-            if (ip == null) return (false, "(DoH resolution failed)");
-
-            var handler = new SocketsHttpHandler
-            {
-                ConnectCallback = async (ctx, ct) =>
-                {
-                    var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-                    await socket.ConnectAsync(IPAddress.Parse(ip), 443, ct);
-                    return new NetworkStream(socket, ownsSocket: true);
-                }
-            };
-            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(4) };
+            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(timeoutSeconds) };
             using var resp = await client.GetAsync($"https://{host}/", HttpCompletionOption.ResponseHeadersRead);
+            // Any HTTP answer (even 403) means the TLS handshake got through the DPI
             return ((int)resp.StatusCode < 500, $"(HTTP {(int)resp.StatusCode}, IP {ip})");
         }
         catch (Exception ex)
         {
             return (false, $"({ex.InnerException?.Message ?? ex.Message})");
         }
-    }
-
-    private static async Task<string?> ResolveViaDoH(string host)
-    {
-        try
-        {
-            var url = $"https://cloudflare-dns.com/dns-query?name={host}&type=A";
-            var req = new HttpRequestMessage(HttpMethod.Get, url);
-            req.Headers.Add("Accept", "application/dns-json");
-            var resp = await DohClient.SendAsync(req);
-            if (!resp.IsSuccessStatusCode) return null;
-            var json = await resp.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("Answer", out var answers)) return null;
-            foreach (var a in answers.EnumerateArray())
-                if (a.GetProperty("type").GetInt32() == 1)
-                    return a.GetProperty("data").GetString();
-            return null;
-        }
-        catch { return null; }
-    }
-
-    private static async Task<List<string>> ResolveAllIps(string host)
-    {
-        var ips = new List<string>();
-        try
-        {
-            var url = $"https://cloudflare-dns.com/dns-query?name={host}&type=A";
-            var req = new HttpRequestMessage(HttpMethod.Get, url);
-            req.Headers.Add("Accept", "application/dns-json");
-            var resp = await DohClient.SendAsync(req);
-            if (!resp.IsSuccessStatusCode) return ips;
-            var json = await resp.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("Answer", out var answers)) return ips;
-            foreach (var a in answers.EnumerateArray())
-                if (a.GetProperty("type").GetInt32() == 1)
-                {
-                    var ip = a.GetProperty("data").GetString();
-                    if (!string.IsNullOrEmpty(ip)) ips.Add(ip);
-                }
-        }
-        catch { }
-        return ips;
-    }
-
-    private static async Task<string?> ResolveDiscordIp()
-    {
-        try
-        {
-            var url = $"https://cloudflare-dns.com/dns-query?name={TestHost}&type=A";
-            var req = new HttpRequestMessage(HttpMethod.Get, url);
-            req.Headers.Add("Accept", "application/dns-json");
-            var resp = await DohClient.SendAsync(req);
-            if (!resp.IsSuccessStatusCode) return null;
-            var json = await resp.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("Answer", out var answers)) return null;
-            foreach (var a in answers.EnumerateArray())
-                if (a.GetProperty("type").GetInt32() == 1)
-                    return a.GetProperty("data").GetString();
-            return null;
-        }
-        catch { return null; }
     }
 
     private static void SaveLog(string content, bool success)
@@ -300,16 +226,15 @@ public static class StrategyDetector
         catch { }
     }
 
-    private static Process? StartZapret(string winwsPath, string strategyArgs)
+    private static Process? StartZapret(string strategyArgs)
     {
         try
         {
-            var fullArgs = $"--wf-tcp=443 --filter-tcp=443 {strategyArgs}";
             var psi = new ProcessStartInfo
             {
-                FileName = winwsPath,
-                Arguments = fullArgs,
-                WorkingDirectory = Path.GetDirectoryName(winwsPath)!,
+                FileName = ZapretService.WinwsPath,
+                Arguments = ZapretService.BuildArguments(strategyArgs, hostlistPath: null, quic: false),
+                WorkingDirectory = AppPaths.ZapretDir,
                 UseShellExecute = true,
                 WindowStyle = ProcessWindowStyle.Hidden
             };
@@ -318,22 +243,9 @@ public static class StrategyDetector
         catch { return null; }
     }
 
-
     private static void Stop(Process? proc)
     {
         try { if (proc is { HasExited: false }) proc.Kill(); } catch { }
         try { proc?.Dispose(); } catch { }
-    }
-
-    private static void KillAllWinws()
-    {
-        try
-        {
-            foreach (var p in Process.GetProcessesByName("winws"))
-            {
-                try { p.Kill(); } catch { }
-            }
-        }
-        catch { }
     }
 }

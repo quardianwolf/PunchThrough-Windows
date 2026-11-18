@@ -37,7 +37,7 @@
                     </Border>
                     <TextBlock Text="PunchThrough" FontSize="22" FontWeight="SemiBold"
                                HorizontalAlignment="Center" Foreground="#1A1A1A"/>
-                    <TextBlock Text="Open-source DPI bypass tool" FontSize="11" Foreground="#999"
+                    <TextBlock x:Name="TxtTagline" Text="Open-source DPI bypass tool" FontSize="11" Foreground="#999"
                                HorizontalAlignment="Center" Margin="0,2,0,0"/>
                     <TextBlock x:Name="TxtSubtitle" Text="Choose your bypass mode" FontSize="12"
                                Foreground="#4CAF50" HorizontalAlignment="Center"
@@ -48,22 +48,22 @@
                 <Border x:Name="ModePanel" Background="#FAFAFA" CornerRadius="8"
                         Margin="28,4,28,8" Padding="20,14">
                     <StackPanel>
-                        <TextBlock Text="Bypass Mode" FontWeight="SemiBold" FontSize="13"
+                        <TextBlock x:Name="LblMode" Text="Bypass Mode" FontWeight="SemiBold" FontSize="13"
                                    Foreground="#333" Margin="0,0,0,10"/>
 
                         <RadioButton x:Name="RbFull" Content="Full Bypass" IsChecked="True"
                                      FontSize="12" Margin="0,0,0,2" GroupName="Mode"/>
-                        <TextBlock Text="All HTTPS traffic is protected. Unblocks everything."
+                        <TextBlock x:Name="TxtFullDesc" TextWrapping="Wrap" Text="All HTTPS traffic is protected. Unblocks everything."
                                    FontSize="11" Foreground="#999" Margin="18,0,0,8"/>
 
                         <RadioButton x:Name="RbDiscord" Content="Discord Only"
                                      FontSize="12" Margin="0,0,0,2" GroupName="Mode"/>
-                        <TextBlock Text="Only Discord is unblocked. Other apps unaffected."
+                        <TextBlock x:Name="TxtDiscordDesc" TextWrapping="Wrap" Text="Only Discord is unblocked. Other apps unaffected."
                                    FontSize="11" Foreground="#999" Margin="18,0,0,8"/>
 
                         <RadioButton x:Name="RbCustom" Content="Custom"
                                      FontSize="12" Margin="0,0,0,2" GroupName="Mode"/>
-                        <TextBlock Text="Choose which sites to unblock. Configurable in settings."
+                        <TextBlock x:Name="TxtCustomDesc" TextWrapping="Wrap" Text="Choose which sites to unblock. Configurable in settings."
                                    FontSize="11" Foreground="#999" Margin="18,0,0,4"/>
                     </StackPanel>
                 </Border>
@@ -79,7 +79,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="Step1Icon" Text="&#x2022;" FontSize="14" Foreground="#CCC"
                                        VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Installing application" Grid.Column="1" Foreground="#555" FontSize="13"
+                            <TextBlock x:Name="Step1Text" Text="Installing application" Grid.Column="1" Foreground="#555" FontSize="13"
                                        VerticalAlignment="Center"/>
                         </Grid>
                         <Grid Margin="0,0,0,8">
@@ -89,7 +89,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="Step2Icon" Text="&#x2022;" FontSize="14" Foreground="#CCC"
                                        VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Extracting bypass engine" Grid.Column="1" Foreground="#555" FontSize="13"
+                            <TextBlock x:Name="Step2Text" Text="Extracting bypass engine" Grid.Column="1" Foreground="#555" FontSize="13"
                                        VerticalAlignment="Center"/>
                         </Grid>
                         <Grid Margin="0,0,0,8">
@@ -99,7 +99,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="Step3Icon" Text="&#x2022;" FontSize="14" Foreground="#CCC"
                                        VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Creating desktop shortcut" Grid.Column="1" Foreground="#555" FontSize="13"
+                            <TextBlock x:Name="Step3Text" Text="Creating desktop shortcut" Grid.Column="1" Foreground="#555" FontSize="13"
                                        VerticalAlignment="Center"/>
                         </Grid>
                         <Grid Margin="0,0,0,8">
@@ -119,7 +119,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="Step5Icon" Text="&#x2022;" FontSize="14" Foreground="#CCC"
                                        VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Configuring auto-start" Grid.Column="1" Foreground="#555" FontSize="13"
+                            <TextBlock x:Name="Step5Text" Text="Configuring auto-start" Grid.Column="1" Foreground="#555" FontSize="13"
                                        VerticalAlignment="Center"/>
                         </Grid>
                     </StackPanel>

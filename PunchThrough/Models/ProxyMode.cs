@@ -2,7 +2,7 @@ namespace PunchThrough.Models;
 
 public enum ProxyMode
 {
-    Full,        // All traffic through SpoofDPI
+    Full,        // All HTTPS traffic
     DiscordOnly, // Only Discord domains
     Custom       // User-selected domains
 }

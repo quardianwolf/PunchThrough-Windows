@@ -19,6 +19,7 @@ public class TrayIcon : IDisposable
 
     // Menu items that need updating
     private readonly ToolStripMenuItem _statusItem;
+    private readonly ToolStripMenuItem _tunnelItem;
     private readonly ToolStripMenuItem _toggleItem;
 
     public TrayIcon(AppState appState)
@@ -27,6 +28,7 @@ public class TrayIcon : IDisposable
 
         // Status item (disabled, just for display)
         _statusItem = new ToolStripMenuItem(appState.StatusText) { Enabled = false };
+        _tunnelItem = new ToolStripMenuItem("") { Enabled = false, Visible = false };
 
         // Connect/Disconnect toggle
         _toggleItem = new ToolStripMenuItem(Strings.Get("Connect"));
@@ -47,6 +49,7 @@ public class TrayIcon : IDisposable
         // Build context menu
         _contextMenu = new ContextMenuStrip();
         _contextMenu.Items.Add(_statusItem);
+        _contextMenu.Items.Add(_tunnelItem);
         _contextMenu.Items.Add(new ToolStripSeparator());
         _contextMenu.Items.Add(_toggleItem);
         _contextMenu.Items.Add(new ToolStripSeparator());
@@ -76,11 +79,20 @@ public class TrayIcon : IDisposable
 
     private void OnAppStateChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(AppState.ConnectionStatus) or nameof(AppState.StatusText) or nameof(AppState.StatusIcon))
+        if (e.PropertyName is not (nameof(AppState.ConnectionStatus) or nameof(AppState.StatusText)
+            or nameof(AppState.StatusIcon) or nameof(AppState.TunnelStatusText)))
+            return;
+
+        // State can change from background work (watchdog, tunnel monitor); the menu belongs to the UI thread
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
         {
-            UpdateIcon();
-            UpdateMenu();
+            dispatcher.BeginInvoke(() => { UpdateIcon(); UpdateMenu(); });
+            return;
         }
+
+        UpdateIcon();
+        UpdateMenu();
     }
 
     private void UpdateIcon()
@@ -91,7 +103,9 @@ public class TrayIcon : IDisposable
             _ => DisconnectedIcon
         };
 
-        _notifyIcon.Text = $"PunchThrough - {_appState.StatusText}";
+        // The tooltip has a hard length limit and error messages can be long
+        var text = $"PunchThrough - {_appState.StatusText}";
+        _notifyIcon.Text = text.Length > 120 ? text[..120] : text;
     }
 
     private void UpdateMenu()
@@ -101,6 +115,15 @@ public class TrayIcon : IDisposable
         if (_appState.ConnectionStatus.State == ConnectionState.Connected)
         {
             _statusItem.Text += $" \u2022 {_appState.EffectiveDns}";
+        }
+
+        var showTunnel = _appState.ConnectionStatus.State == ConnectionState.Connected
+            && !string.IsNullOrEmpty(_appState.TunnelStatusText);
+        _tunnelItem.Visible = showTunnel;
+        if (showTunnel)
+        {
+            var tunnel = Strings.Format("TunnelMenu", _appState.TunnelStatusText);
+            _tunnelItem.Text = tunnel.Length > 90 ? tunnel[..90] + "..." : tunnel;
         }
 
         _toggleItem.Text = _appState.ConnectionStatus.IsActive
@@ -130,10 +153,14 @@ public class TrayIcon : IDisposable
 
     private async void OnResetClick(object? sender, EventArgs e)
     {
-        await BypassService.Instance.DisconnectAsync(_appState);
-        StartupService.SetEnabled(false);
+        var answer = System.Windows.MessageBox.Show(
+            Strings.Get("ResetConfirm"), Strings.Get("ResetTitle"),
+            MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+        if (answer != MessageBoxResult.Yes) return;
 
-        _appState.AddLog("All settings reset. You can safely delete PunchThrough.");
+        await BypassService.Instance.DisconnectAsync(_appState);
+        BypassService.Instance.ShutdownSync(); // also covers a state where Disconnect was not allowed
+        InstallService.Uninstall();
         Application.Current.Shutdown();
     }
 
